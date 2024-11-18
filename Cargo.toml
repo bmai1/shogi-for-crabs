@@ -8,3 +8,4 @@ egui = "0.29.1"
 eframe = "0.29.1"
 egui_extras = { version = "*", features = ["all_loaders"] }
 image = { version = "0.25.5", features = ["jpeg", "png"] }
+shogi = "0.12.2"
