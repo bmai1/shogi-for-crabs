@@ -1,0 +1,14 @@
+https://code.google.com/archive/p/shogitools/wikis/sfen_start.wiki
+http://hgm.nubati.net/usi.html
+
+SFEN stands for 'Shogi Forsyth-Edwards Notation'.
+
+A Shogi FEN string (SFEN from now on) consists of a single line of ASCII text containing four data fields, separated by whitespace. These are:
+
+    Board state. The placement of the pieces of the board is written rank by rank, with each rank separated by a slash ('/'). The ranks are ordered from the white side, beginning with rank 'a' and ending with rank 'i' (using the standard English shogi board coordinates). For each rank, the squares are specified from file 9 to file 1. The uppercase letters "PLNSGBRK" are used for the non-promoted black pieces, while the lowercase letters "plnsgbrk" are used for the non-promoted white pieces. A promoted piece is denoted by a '+' character immediately before the piece letter, e.g. +B for a black promoted bishop. One or more contiguous empty squares are represented by a digit counting the number of squares.
+    The side to move. This field contains of a single letter, "b" (for "black") or "w" (for "white"), depending on the current side to move.
+    Pieces in hand.. Again we use uppercase letters for black pieces, and lowercase letters for white's captured pieces. A digit before a letter means that there are several pieces of the given type in hand. The pieces are always listed in the order rook, bishop, gold, silver, knight, lance, pawn; and with all black pieces before all white pieces. As an example, in a position where black has one rook, one gold and four pawns in hand, while white has two bishops, two silvers and three pawns, the pieces in hand data field in the SFEN would look like "RG4P2b2s3p". If neither player has any pieces in hand, a single minus character ("-") is used for the pieces in hand field.
+    Move count. An integer representing the number of the current move in the game. We are using the shogi convention for move counting, which means that we count what international players would call "plies" or "half moves". For instance, after the moves 1. P7g-7f 2. P8c-8d, the move counter is 3. The "move count" data field is optional; a program should be able to read and understand an SFEN string even if this field is missing.
+
+As an example, the initial position in shogi is encoded like this:
+lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1

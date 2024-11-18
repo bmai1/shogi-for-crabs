@@ -1,0 +1,19 @@
+Sente (Black) - Moves first up the board
+Gote (White)
+
+    FU (歩): Pawn, also called "Fuhyou" (歩兵), which means "foot soldier."
+    GI (銀): Silver General, or "Ginshou" (銀将).
+    HI (飛): Rook, or "Hisha" (飛車), which means "flying chariot."
+    KA (角): Bishop, or "Kakugyou" (角行), which means "angle mover."
+    KY (香): Lance, or "Kyousha" (香車), meaning "fragrant chariot."
+    KE (桂): Knight, or "Keima" (桂馬).
+    KI (金): Gold General, or "Kinshou" (金将).
+    OU (王) or GY (玉): King, or "Ou" (王) or "Gyokushou" (玉将) depending on the player's side.
+    TO (と): Promoted Pawn (FU) "Tokin" (と金).
+    NG (全): Promoted Silver (GI) "Narigin" (成銀). 
+    NK (圭): Promoted Knight (KE) "Narikei" (成桂). 
+    NY (杏): Promoted Lance (KY) "Narikyou" (成香).
+    RY (龍): Dragon, Promoted Rook (HI) "Ryuuou" (竜王 or 龍王). When promoted, a Rook (飛) gains the additional diagonal movement of a King.
+    UM (馬): Horse, Promoted Bishop (KA) "Ryuuuma" (竜馬 or 龍馬). When promoted, a Bishop (角) gains the additional orthogonal movement of a King.
+    
+9x9 board

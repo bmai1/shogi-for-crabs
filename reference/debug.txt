@@ -1,0 +1,13 @@
+rustc file.rs
+
+cargo new app (cd app)
+cargo build 
+
+- creates executable in target/debug: 
+    cargo run  
+    ./target/debug/hello_cargo
+
+- wrap in Ok() for return type Result<(), Error_Type>
+- image loading with egui_extras with all_loaders
+
+
