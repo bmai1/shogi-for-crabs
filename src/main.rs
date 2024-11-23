@@ -2,14 +2,15 @@
 
 use eframe::egui::{
     self, CentralPanel, Context, ViewportBuilder, TextureHandle, Ui,
-    Image, Rect, Vec2, Pos2, Align2,
-    Painter, Stroke, FontId, Color32,
+    Image, ImageButton, Rect, Vec2, Pos2, Align2,
+    Painter, Rounding, Stroke, FontId, Color32,
 };
 
 use shogi::{
     Move, 
     Position, 
     Square,
+    Piece,
     PieceType,
     Color
 };
@@ -46,13 +47,25 @@ impl MyApp {
         Self { pos }
     }
 
-    fn move_pawn_for_fun(&mut self) {
-        let m = Move::Normal{from: SQ_7G, to: SQ_7F, promote: false};
+    // https://github.com/nozaq/shogi-rs/blob/main/src/square.rs
+    fn move_pawn(&mut self, sq: shogi::Square, color: shogi::Color) {
+        // let m = Move::Normal{from: SQ_7G, to: SQ_7F, promote: false};
+        // df is move file (left/right), dr is moving rank (up/down)
+
+        let forward_sq = if color == shogi::Color::Black {
+            sq.shift(0, -1).unwrap()
+        } 
+        else {
+            sq.shift(0, 1).unwrap()
+        };
+        
+        let m = Move::Normal{from: sq, to: forward_sq, promote: false};
+        
+        // unwrap or default to not crash when invalid.
         self.pos.make_move(m).unwrap();  
     }
 
     fn render_pieces(&mut self, ui: &mut egui::Ui) {
-
         for rank in 0..9 {
             for file in (0..9).rev() {
                 let sq = shogi::Square::new(file, rank).unwrap();
@@ -69,8 +82,26 @@ impl MyApp {
                     // unwrap Option<Piece> 
                     let piece = piece.unwrap();
                     match (piece.piece_type, piece.color) {
-                        (shogi::PieceType::Pawn,   shogi::Color::Black) => { egui::Image::new(egui::include_image!("images/pieces/0FU.png")).paint_at(ui, rect); },
-                        (shogi::PieceType::Pawn,   shogi::Color::White) => { egui::Image::new(egui::include_image!("images/pieces/1FU.png")).paint_at(ui, rect); },
+                        (shogi::PieceType::Pawn, shogi::Color::Black) => { 
+                            
+                            let piece_image_button = egui::ImageButton::new(egui::include_image!("images/pieces/0FU.png")).frame(false);
+                            if ui.put(rect, piece_image_button).clicked() {
+                                // self.show_available_moves(ui, piece, file, rank);
+                                self.move_pawn(sq, piece.color);
+                            }
+                    
+                            // egui::Image::new(egui::include_image!("images/pieces/0FU.png")).paint_at(ui, rect);
+                        },
+
+                        (shogi::PieceType::Pawn, shogi::Color::White) => { 
+                            let piece_image_button = egui::ImageButton::new(egui::include_image!("images/pieces/1FU.png")).frame(false);
+                            // i can separate this later.
+                            if ui.put(rect, piece_image_button).clicked() {
+                                self.move_pawn(sq, piece.color);
+                            }
+                        },
+
+    
                         (shogi::PieceType::Silver, shogi::Color::Black) => { egui::Image::new(egui::include_image!("images/pieces/0GI.png")).paint_at(ui, rect); },
                         (shogi::PieceType::Silver, shogi::Color::White) => { egui::Image::new(egui::include_image!("images/pieces/1GI.png")).paint_at(ui, rect); },
                         (shogi::PieceType::King,   shogi::Color::Black) => { egui::Image::new(egui::include_image!("images/pieces/0GY.png")).paint_at(ui, rect); },
@@ -87,12 +118,25 @@ impl MyApp {
                         (shogi::PieceType::Lance,  shogi::Color::White) => { egui::Image::new(egui::include_image!("images/pieces/1KY.png")).paint_at(ui, rect); },
                         _ => (),
                     }
-
                 }
             }
         }
-
     }
+
+    // fn show_available_moves(&mut self, ui: &mut egui::Ui, piece: shogi::Piece, rank: u8, file: u8) {
+    //     let painter = ui.painter();
+    //     match (piece.piece_type, piece.color) {
+    //         (shogi::PieceType::Pawn,   shogi::Color::White) => {
+    //             let min  = Pos2::new(20.0 + (file as f32 * 44.44), 375.4 - ((rank as f32 + 1.0) * 44.44));
+    //             let size = Vec2::new(44.44, 44.44);
+
+    //             let rect  = egui::Rect::from_min_size(min, size);
+    //             let color = egui::Color32::from_rgba_unmultiplied(255, 0, 0, 128); // 50% opacity
+    //             painter.rect_filled(rect, egui::Rounding::ZERO, color);
+    //         },
+    //         _ => (),
+    //     }
+    // }
 }
 
 impl eframe::App for MyApp {
@@ -146,11 +190,20 @@ impl eframe::App for MyApp {
 
             ui.monospace(format!("{}", self.pos));
 
-            if ui.button("move").clicked() {
-                self.move_pawn_for_fun(); 
-            }
-
             self.render_pieces(ui);
+
+            // for rank in 0..9 {
+            //     for file in (0..9).rev() {
+            //         let sq = shogi::Square::new(file, rank).unwrap();
+            //         let piece = self.pos.piece_at(sq);
+
+            //         if *piece != None {
+            //             let piece = piece.unwrap();
+            //             self.show_available_moves(ui, piece, rank, file);
+            //         }
+            //     }
+            // }
+            
         }); 
     }
 }
