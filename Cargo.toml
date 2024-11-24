@@ -9,3 +9,6 @@ eframe = "0.29.1"
 egui_extras = { version = "*", features = ["all_loaders"] }
 image = { version = "0.25.5", features = ["jpeg", "png"] }
 shogi = "0.12.2"
+serialport = "4.6.0"
+mouse-rs = "0.4"
+itertools = "0.13.0"
