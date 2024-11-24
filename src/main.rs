@@ -8,18 +8,12 @@ use eframe::egui::{
 
 use shogi::{
     Move, 
-    // Position, 
+    Position, 
     Square,
-    // Piece,
+    Piece,
     PieceType,
     Color
 };
-
-mod piece; 
-use piece::Piece;
-
-mod position;
-use position::Position;
 
 use shogi::bitboard::Factory as BBFactory;
 use shogi::square::consts::*;
@@ -33,18 +27,20 @@ fn main() -> Result<(), eframe::Error> {
     // initial board position
     pos.set_sfen("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1").unwrap();
 
+    let mut active = [[false; 9]; 9];
+
     // init piece buttons and activation status
-    for rank in 0..9 {
-        for file in (0..9).rev() {
-            let sq = shogi::Square::new(file, rank).unwrap();
-            let piece = pos.piece_at(sq);
-            if *piece != None {
-                let mut piece = piece.unwrap();
-                piece.set_button();
-                piece.set_inactive();
-            }
-        }
-    }
+    // for rank in 0..9 {
+    //     for file in (0..9).rev() {
+    //         let sq = shogi::Square::new(file, rank).unwrap();
+    //         let piece = pos.piece_at(sq);
+    //         if *piece != None {
+    //             let mut piece = piece.unwrap();
+    //             piece.set_button();
+    //             piece.set_inactive();
+    //         }
+    //     }
+    // }
 
     let options = eframe::NativeOptions {
         viewport: ViewportBuilder::default().with_inner_size([800.0, 800.0]),
@@ -55,7 +51,7 @@ fn main() -> Result<(), eframe::Error> {
         options,
         Box::new(|cc| {
             egui_extras::install_image_loaders(&cc.egui_ctx); // image support
-            Ok(Box::new(MyApp::new(&cc.egui_ctx, pos))) // init MyApp with context
+            Ok(Box::new(MyApp::new(&cc.egui_ctx, pos, active))) // init MyApp with context
         }),
     )
 }
@@ -63,11 +59,12 @@ fn main() -> Result<(), eframe::Error> {
 // #[derive(Default)]
 struct MyApp {
     pos: Position,
+    active: [[bool; 9]; 9]
 }
 
 impl MyApp {
-    fn new(ctx: &Context, pos: Position) -> Self {
-        Self { pos }
+    fn new(ctx: &Context, pos: Position, active: [[bool; 9]; 9]) -> Self {
+        Self { pos, active,  }
     }
 
     // https://github.com/nozaq/shogi-rs/blob/main/src/square.rs
@@ -85,7 +82,7 @@ impl MyApp {
         let m = Move::Normal{from: sq, to: forward_sq, promote: false};
         
         // unwrap or default to not crash when invalid.
-        self.pos.make_move(m).unwrap();  
+        self.pos.make_move(m).unwrap_or_default();  
     }
 
     fn render_pieces(&mut self, ui: &mut egui::Ui) {
@@ -96,62 +93,83 @@ impl MyApp {
 
                 // see piece_type.rs: https://github.com/nozaq/shogi-rs/blob/main/src/piece_type.rs#L23
                 if *piece != None {
-                    let mut piece = piece.unwrap();
-                    let min  = Pos2::new(375.0 - (file as f32 * 44.44), 20.0 + (rank as f32 * 44.44));
-                    let rect = Rect::from_min_size(min, piece.size);
+
+                    // let mut piece = piece.unwrap();
+                    // let min  = Pos2::new(375.0 - (file as f32 * 44.44), 20.0 + (rank as f32 * 44.44));
+                    // let rect = Rect::from_min_size(min, piece.size);
                     
-                    if ui.put(rect, piece.piece_button).clicked() {
-                        if piece.active {
-                            self.move_pawn(sq, piece.color);
-                            piece.set_inactive();
-                        }
-                        else {
-                            piece.set_active();
-                        }
+                    // if ui.put(rect, piece.piece_button.unwrap()).clicked() {
+                    //     if piece.active {
+                    //         self.move_pawn(sq, piece.color);
+                    //         piece.set_inactive();
+                    //     }
+                    //     else {
+                    //         piece.set_active();
+                    //     }
+                    // }
+
+                    let mut min  = Pos2::new(375.0 - (file as f32 * 44.44), 20.0 + (rank as f32 * 44.44));
+                    let mut size = Vec2::new(44.44, 44.44);
+
+                    if self.active[file as usize][rank as usize] {
+                        min  = Pos2::new(367.0 - (file as f32 * 44.44), 13.0 + (rank as f32 * 44.44));
+                        size = Vec2::new(60.0, 60.0);
                     }
 
-                    // let size = Vec2::new(44.44, 44.44);
-                    // let rect = Rect::from_min_size(min, size);
+                    let rect = Rect::from_min_size(min, size);
 
-                    // // unwrap Option<Piece> 
-                    // let piece = piece.unwrap();
-                    // match (piece.piece_type, piece.color) {
-                    //     (shogi::PieceType::Pawn, shogi::Color::Black) => { 
+                    // unwrap Option<Piece> 
+                    let piece = piece.unwrap();
+                    match (piece.piece_type, piece.color) {
+                        (shogi::PieceType::Pawn, shogi::Color::Black) => { 
                             
-                    //         let piece_image_button = egui::ImageButton::new(egui::include_image!("images/pieces/0FU.png")).frame(false);
-                    //         if ui.put(rect, piece_image_button).clicked() {
-                    //             // self.show_available_moves(ui, piece, file, rank);
-                    //             self.move_pawn(sq, piece.color); 
-                    //         }
+                            let piece_image_button = egui::ImageButton::new(egui::include_image!("images/pieces/0FU.png")).frame(false);
+                            if ui.put(rect, piece_image_button).clicked() {
+                                // self.show_available_moves(ui, piece, file, rank);
+
+                                self.move_pawn(sq, piece.color); 
+
+                                // let row = file as usize;
+                                // let col = rank as usize;
+                                // if (self.active[row][col]) {
+                                //     self.move_pawn(sq, piece.color); 
+                                //     self.active[row][col] = false;
+
+
+                                // }
+                                // else {
+                                //     self.active[row][col] = true;
+                                // }
+
+                            }
                     
-                    //         // egui::Image::new(egui::include_image!("images/pieces/0FU.png")).paint_at(ui, rect);
-                    //     },
+                            // egui::Image::new(egui::include_image!("images/pieces/0FU.png")).paint_at(ui, rect);
+                        },
 
-                    //     (shogi::PieceType::Pawn, shogi::Color::White) => { 
-                    //         let piece_image_button = egui::ImageButton::new(egui::include_image!("images/pieces/1FU.png")).frame(false);
-                    //         // i can separate this later.
-                    //         if ui.put(rect, piece_image_button).clicked() {
-                    //             self.move_pawn(sq, piece.color);
-                    //         }
-                    //     },
+                        (shogi::PieceType::Pawn, shogi::Color::White) => { 
+                            let piece_image_button = egui::ImageButton::new(egui::include_image!("images/pieces/1FU.png")).frame(false);
+                            // i can separate this later.
+                            if ui.put(rect, piece_image_button).clicked() {
+                                self.move_pawn(sq, piece.color);
+                            }
+                        },
 
-    
-                    //     (shogi::PieceType::Silver, shogi::Color::Black) => { egui::Image::new(egui::include_image!("images/pieces/0GI.png")).paint_at(ui, rect); },
-                    //     (shogi::PieceType::Silver, shogi::Color::White) => { egui::Image::new(egui::include_image!("images/pieces/1GI.png")).paint_at(ui, rect); },
-                    //     (shogi::PieceType::King,   shogi::Color::Black) => { egui::Image::new(egui::include_image!("images/pieces/0GY.png")).paint_at(ui, rect); },
-                    //     (shogi::PieceType::King,   shogi::Color::White) => { egui::Image::new(egui::include_image!("images/pieces/1GY.png")).paint_at(ui, rect); },
-                    //     (shogi::PieceType::Rook,   shogi::Color::Black) => { egui::Image::new(egui::include_image!("images/pieces/0HI.png")).paint_at(ui, rect); },
-                    //     (shogi::PieceType::Rook,   shogi::Color::White) => { egui::Image::new(egui::include_image!("images/pieces/1HI.png")).paint_at(ui, rect); },
-                    //     (shogi::PieceType::Bishop, shogi::Color::Black) => { egui::Image::new(egui::include_image!("images/pieces/0KA.png")).paint_at(ui, rect); },
-                    //     (shogi::PieceType::Bishop, shogi::Color::White) => { egui::Image::new(egui::include_image!("images/pieces/1KA.png")).paint_at(ui, rect); },
-                    //     (shogi::PieceType::Knight, shogi::Color::Black) => { egui::Image::new(egui::include_image!("images/pieces/0KE.png")).paint_at(ui, rect); },
-                    //     (shogi::PieceType::Knight, shogi::Color::White) => { egui::Image::new(egui::include_image!("images/pieces/1KE.png")).paint_at(ui, rect); },
-                    //     (shogi::PieceType::Gold,   shogi::Color::Black) => { egui::Image::new(egui::include_image!("images/pieces/0KI.png")).paint_at(ui, rect); },
-                    //     (shogi::PieceType::Gold,   shogi::Color::White) => { egui::Image::new(egui::include_image!("images/pieces/1KI.png")).paint_at(ui, rect); },
-                    //     (shogi::PieceType::Lance,  shogi::Color::Black) => { egui::Image::new(egui::include_image!("images/pieces/0KY.png")).paint_at(ui, rect); },
-                    //     (shogi::PieceType::Lance,  shogi::Color::White) => { egui::Image::new(egui::include_image!("images/pieces/1KY.png")).paint_at(ui, rect); },
-                    //     _ => (),
-                    // }
+                        (shogi::PieceType::Silver, shogi::Color::Black) => { egui::Image::new(egui::include_image!("images/pieces/0GI.png")).paint_at(ui, rect); },
+                        (shogi::PieceType::Silver, shogi::Color::White) => { egui::Image::new(egui::include_image!("images/pieces/1GI.png")).paint_at(ui, rect); },
+                        (shogi::PieceType::King,   shogi::Color::Black) => { egui::Image::new(egui::include_image!("images/pieces/0GY.png")).paint_at(ui, rect); },
+                        (shogi::PieceType::King,   shogi::Color::White) => { egui::Image::new(egui::include_image!("images/pieces/1GY.png")).paint_at(ui, rect); },
+                        (shogi::PieceType::Rook,   shogi::Color::Black) => { egui::Image::new(egui::include_image!("images/pieces/0HI.png")).paint_at(ui, rect); },
+                        (shogi::PieceType::Rook,   shogi::Color::White) => { egui::Image::new(egui::include_image!("images/pieces/1HI.png")).paint_at(ui, rect); },
+                        (shogi::PieceType::Bishop, shogi::Color::Black) => { egui::Image::new(egui::include_image!("images/pieces/0KA.png")).paint_at(ui, rect); },
+                        (shogi::PieceType::Bishop, shogi::Color::White) => { egui::Image::new(egui::include_image!("images/pieces/1KA.png")).paint_at(ui, rect); },
+                        (shogi::PieceType::Knight, shogi::Color::Black) => { egui::Image::new(egui::include_image!("images/pieces/0KE.png")).paint_at(ui, rect); },
+                        (shogi::PieceType::Knight, shogi::Color::White) => { egui::Image::new(egui::include_image!("images/pieces/1KE.png")).paint_at(ui, rect); },
+                        (shogi::PieceType::Gold,   shogi::Color::Black) => { egui::Image::new(egui::include_image!("images/pieces/0KI.png")).paint_at(ui, rect); },
+                        (shogi::PieceType::Gold,   shogi::Color::White) => { egui::Image::new(egui::include_image!("images/pieces/1KI.png")).paint_at(ui, rect); },
+                        (shogi::PieceType::Lance,  shogi::Color::Black) => { egui::Image::new(egui::include_image!("images/pieces/0KY.png")).paint_at(ui, rect); },
+                        (shogi::PieceType::Lance,  shogi::Color::White) => { egui::Image::new(egui::include_image!("images/pieces/1KY.png")).paint_at(ui, rect); },
+                        _ => (),
+                    }
                 }
             }
         }
