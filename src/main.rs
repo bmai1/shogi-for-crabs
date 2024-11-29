@@ -4,7 +4,7 @@ use eframe::egui::{
     self, CentralPanel, Context, ViewportBuilder, Rect, Vec2, Pos2,
 };
 use shogi::{
-    Position, Square,
+    Position, Square, Move
 };
 
 mod board;
@@ -39,11 +39,12 @@ fn main() -> Result<(), eframe::Error> {
 struct ShogiGame<'a> {
     pos: Position,
     board: Board<'a>,
+    error_message: String,
 }
 
 impl<'a> ShogiGame<'a> {
     fn new(_ctx: &Context, pos: Position, board: Board<'a>) -> Self {
-        Self { pos, board, }
+        Self { pos, board, error_message: String::new() }
     }
 
     // runs in update function, renders piece_button based on board row/col
@@ -59,11 +60,50 @@ impl<'a> ShogiGame<'a> {
                 let min = Pos2::new(file as f32 * 60.0, rank as f32 * 60.0);
                 let rect = Rect::from_min_size(min, size);
     
-                let curr_piece_button = self.board.piece_buttons[rank][file].button.clone();
+                let curr_piece = &self.board.piece_buttons[rank][file]; // PieceButton
     
-                if ui.put(rect, curr_piece_button).clicked() {
-                    self.board.set_active(rank as i32, file as i32);
+                // pass in curr_piece PieceButton's ImageButton to ui
+                if ui.put(rect, curr_piece.button.clone()).clicked() {
+                    self.error_message = String::new();
+                    let active = self.board.active.clone();
+                   
+                    // Try moving active piece into curr empty cell or capturing enemy piece
+                    if active != [-1, -1] {
+            
+                        let active_piece = &self.board.piece_buttons[active[0] as usize][active[1] as usize];
+
+                        if active_piece.piece != None && 
+                            (curr_piece.piece == None || 
+                            (curr_piece.piece != None && curr_piece.piece.unwrap().color != active_piece.piece.unwrap().color)) {
+
+                            // FILE ORDER IS REVERSED, GOES FROM 9 to 1, rank a-i
+                            // Square::new(file, rank), FILE FIRST
+
+                            let from_sq = Square::new(active[1] as u8, active[0] as u8).unwrap();
+                            let to_sq = Square::new(file as u8, rank as u8).unwrap();
+
+                            // println!("{}", from_sq);
+                            // println!("{}", to_sq);
+
+                            let m = Move::Normal{from: from_sq, to: to_sq, promote: false};
+                            self.pos.make_move(m).unwrap_or_else(|err| {
+                                self.error_message = format!("Error in make_move: {}", err);
+                                Default::default()
+                            });  
+                        }
+
+                        self.board.set_active(-1, -1);
+
+                    }
+                    // change selection of ally piece
+                    else if curr_piece.piece != None {
+                        self.board.set_active(rank as i32, file as i32);
+                        // println!("Rank: {}", rank);
+                        // println!("File: {}", 9 - file);
+                    }
                 }
+
+                
             }
         }
     }
@@ -76,6 +116,7 @@ impl<'a> eframe::App for ShogiGame<'_> {
             self.board.update_board(&self.pos);
             self.render_pieces(ui);
 
+            ui.label(format!(" {}", self.error_message));
         }); 
     }
 }
