@@ -1,12 +1,12 @@
 use egui::{ ImageButton, include_image };
 use shogi::{ Piece, PieceType, Color };
 
-pub struct PieceButton {
-    pub button: ImageButton,
+pub struct PieceButton<'a> {
+    pub button: ImageButton<'a>,
     pub piece: Option<Piece>,
 }
 
-impl PieceButton {
+impl<'a> PieceButton<'a> {
     pub fn new_piece(piece: Piece) -> Self {
         let button = match (piece.piece_type, piece.color) {
             (PieceType::Pawn, Color::Black) => {

@@ -3,12 +3,12 @@
 use shogi::{Position, Square};
 use crate::PieceButton;
 
-pub struct Board {
-    pub piece_buttons: [[PieceButton; 9]; 9], 
+pub struct Board<'a> {
+    pub piece_buttons: [[PieceButton<'a>; 9]; 9], 
     pub active: [i32; 2],
 }
 
-impl Board {
+impl<'a> Board<'a> {
     pub fn new() -> Self {
         let piece_buttons = std::array::from_fn(|_| {
             std::array::from_fn(|_| PieceButton::new())
@@ -20,10 +20,13 @@ impl Board {
         }
     }
 
-
     pub fn set_active(&mut self, rank: i32, file: i32) {
-        self.active[0] = rank;
-        self.active[1] = file;
+        if self.active == [rank, file] {
+            self.active = [-1, -1];
+        }
+        else {
+            self.active = [rank, file]
+        }
     }
 
     pub fn update_board(&mut self, pos: &Position) {

@@ -36,13 +36,13 @@ fn main() -> Result<(), eframe::Error> {
     )
 }
 
-struct ShogiGame {
+struct ShogiGame<'a> {
     pos: Position,
-    board: Board,
+    board: Board<'a>,
 }
 
-impl ShogiGame {
-    fn new(_ctx: &Context, pos: Position, board: Board) -> Self {
+impl<'a> ShogiGame<'a> {
+    fn new(_ctx: &Context, pos: Position, board: Board<'a>) -> Self {
         Self { pos, board, }
     }
 
@@ -69,7 +69,7 @@ impl ShogiGame {
     }
 }
 
-impl eframe::App for ShogiGame {
+impl<'a> eframe::App for ShogiGame<'_> {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
         CentralPanel::default().show(ctx, |ui| {
 
