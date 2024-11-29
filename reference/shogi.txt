@@ -17,3 +17,15 @@ Gote (White)
     UM (馬): Horse, Promoted Bishop (KA) "Ryuuuma" (竜馬 or 龍馬). When promoted, a Bishop (角) gains the additional orthogonal movement of a King.
     
 9x9 board
+
+First iteration failure:
+    - how to update board when Position, Piece in separate crate
+
+Fix ideas:
+    - Wrapper class for Bitboard, Piece
+    - Each piece has shogi::Piece, egui::ImageButton
+    - One active piece at a time
+    - If active, render_board will use a bigger size for the image button
+    - If active and click on cell, see if valid move
+    - If active and click on enemy piece, capture
+    - If active and click on ally piece, active is now on ally piece
