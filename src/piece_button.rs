@@ -11,10 +11,55 @@ impl<'a> PieceButton<'a> {
         let button = match (piece.piece_type, piece.color) {
             (PieceType::Pawn, Color::Black) => {
                 ImageButton::new(include_image!("images/pieces/0FU.png")).frame(false)
-            }
-            _ => {
+            },
+            (PieceType::Pawn, Color::White) => {
                 ImageButton::new(include_image!("images/pieces/1FU.png")).frame(false)
-            }
+            },
+            (PieceType::Silver, Color::Black) => {
+                ImageButton::new(include_image!("images/pieces/0GI.png")).frame(false)
+            },
+            (PieceType::Silver, Color::White) => {
+                ImageButton::new(include_image!("images/pieces/1GI.png")).frame(false)
+            },
+            (PieceType::King, Color::Black) => {
+                ImageButton::new(include_image!("images/pieces/0GY.png")).frame(false)
+            },
+            (PieceType::King, Color::White) => {
+                ImageButton::new(include_image!("images/pieces/1GY.png")).frame(false)
+            },
+            (PieceType::Rook, Color::Black) => {
+                ImageButton::new(include_image!("images/pieces/0HI.png")).frame(false)
+            },
+            (PieceType::Rook, Color::White) => {
+                ImageButton::new(include_image!("images/pieces/1HI.png")).frame(false)
+            },
+            (PieceType::Bishop, Color::Black) => {
+                ImageButton::new(include_image!("images/pieces/0KA.png")).frame(false)
+            },
+            (PieceType::Bishop, Color::White) => {
+                ImageButton::new(include_image!("images/pieces/1KA.png")).frame(false)
+            },
+            (PieceType::Knight, Color::Black) => {
+                ImageButton::new(include_image!("images/pieces/0KE.png")).frame(false)
+            },
+            (PieceType::Knight, Color::White) => {
+                ImageButton::new(include_image!("images/pieces/1KE.png")).frame(false)
+            },
+            (PieceType::Gold, Color::Black) => {
+                ImageButton::new(include_image!("images/pieces/0KI.png")).frame(false)
+            },
+            (PieceType::Gold, Color::White) => {
+                ImageButton::new(include_image!("images/pieces/1KI.png")).frame(false)
+            },
+            (PieceType::Lance, Color::Black) => {
+                ImageButton::new(include_image!("images/pieces/0KY.png")).frame(false)
+            },
+            (PieceType::Lance, Color::White) => {
+                ImageButton::new(include_image!("images/pieces/1KY.png")).frame(false)
+            },
+            _ => {
+                ImageButton::new(include_image!("images/pieces/empty.png")).frame(false)
+            },
         };
 
         PieceButton {
