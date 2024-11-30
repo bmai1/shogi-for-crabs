@@ -20,11 +20,13 @@ use joystick::Joystick;
 fn main() -> Result<(), eframe::Error> {
     shogi::bitboard::Factory::init();
 
-    let mut pos = Position::new();
+    let mut pos      = Position::new();
+    let mut board    = Board::new();
+    let mut joystick = Joystick::new();
+    
     pos.set_sfen("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1").unwrap();
-
-    let mut board = Board::new();
-
+    joystick.init();
+    
     let options = eframe::NativeOptions {
         viewport: ViewportBuilder::default().with_inner_size([1000.0, 675.0]), 
         ..Default::default()
@@ -34,7 +36,7 @@ fn main() -> Result<(), eframe::Error> {
         options,
         Box::new(|cc| {
             egui_extras::install_image_loaders(&cc.egui_ctx);
-            Ok(Box::new(ShogiGame::new(&cc.egui_ctx, pos, board)))
+            Ok(Box::new(ShogiGame::new(&cc.egui_ctx, pos, board, joystick)))
         }),
     )
 }
@@ -43,11 +45,12 @@ struct ShogiGame<'a> {
     pos: Position,
     board: Board<'a>,
     error_message: String,
+    joystick: Joystick,
 }
 
 impl<'a> ShogiGame<'a> {
-    fn new(_ctx: &Context, pos: Position, board: Board<'a>) -> Self {
-        Self { pos, board, error_message: String::new() }
+    fn new(_ctx: &Context, pos: Position, board: Board<'a>, joystick: Joystick) -> Self {
+        Self { pos, board, error_message: String::new(), joystick }
     }
     
     fn render_board(&mut self, ui: &mut egui::Ui) {
