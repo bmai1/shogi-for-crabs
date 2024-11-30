@@ -1,5 +1,6 @@
 use std::time::Duration;
 use std::io::{BufRead, BufReader};
+use std::sync::mpsc;
 
 pub struct Joystick {
     pub switch: i32,
@@ -7,7 +8,6 @@ pub struct Joystick {
     pub y: i32,
     pub rank: u8,
     pub file: u8,
-    pub update_locked: bool, 
 }
 
 impl Joystick {
@@ -18,7 +18,6 @@ impl Joystick {
             y: 0, 
             rank: 0, 
             file: 0,
-            update_locked: false, 
         }
     }
 
@@ -84,7 +83,6 @@ impl Joystick {
         }
     }
 }
-
 
 impl Clone for Joystick {
     fn clone(&self) -> Self {
