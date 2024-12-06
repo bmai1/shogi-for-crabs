@@ -45,8 +45,7 @@ impl<'a> ShogiGame<'a> {
         Self { pos, board, error_message: String::new()}
     }
     
-    fn render_board(&mut self, ui: &mut egui::Ui) {
-        ui.add(egui::Image::new(egui::include_image!("images/boards/kaya1.jpg")));
+    fn render_grid(&mut self, ui: &mut egui::Ui) {
 
         let position_factor = 62.22;              // Multiplied by rank and file to get position (560 / 9 = 62.22)
         let (offset_x, offset_y) = (106.5, 56.5); // Offset from top-left
@@ -104,6 +103,10 @@ impl<'a> ShogiGame<'a> {
 
     // runs in update function, renders piece_button based on board row/col
     fn render_pieces(&mut self, ui: &mut egui::Ui) {
+
+        // board needs to be rendered before piece ImageButtons
+        ui.add(egui::Image::new(egui::include_image!("images/boards/kaya1.jpg")));
+
         for rank in 0..9 {
             for file in 0..9 {
 
@@ -186,9 +189,11 @@ impl<'a> eframe::App for ShogiGame<'_> {
             egui::Frame::default()
                 .inner_margin(egui::Margin { left: 100.0, right: 100.0, top: 50.0, bottom: 50.0 })
                 .show(ui, |ui| {
+
                     self.board.update_board(&self.pos);
-                    self.render_board(ui);
+
                     self.render_pieces(ui);
+                    self.render_grid(ui); 
 
                     // ui.monospace(format!("{}", self.pos));
 
