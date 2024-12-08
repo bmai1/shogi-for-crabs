@@ -76,3 +76,22 @@ impl<'a> PieceButton<'a> {
         }
     }
 }
+
+// Used to iterate over hand.rs from shogi crate.
+// Checks how many of each piece are in hand.
+pub static PIECE_TYPES: [Piece; 14] = [
+    Piece { piece_type: PieceType::Pawn,   color: Color::Black },
+    Piece { piece_type: PieceType::Lance,  color: Color::Black },
+    Piece { piece_type: PieceType::Knight, color: Color::Black },
+    Piece { piece_type: PieceType::Silver, color: Color::Black },
+    Piece { piece_type: PieceType::Gold,   color: Color::Black },
+    Piece { piece_type: PieceType::Rook,   color: Color::Black },
+    Piece { piece_type: PieceType::Bishop, color: Color::Black },
+    Piece { piece_type: PieceType::Pawn,   color: Color::White },
+    Piece { piece_type: PieceType::Lance,  color: Color::White },
+    Piece { piece_type: PieceType::Knight, color: Color::White },
+    Piece { piece_type: PieceType::Silver, color: Color::White },
+    Piece { piece_type: PieceType::Gold,   color: Color::White },
+    Piece { piece_type: PieceType::Rook,   color: Color::White },
+    Piece { piece_type: PieceType::Bishop, color: Color::White },
+];

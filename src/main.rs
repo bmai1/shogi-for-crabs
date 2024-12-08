@@ -10,7 +10,7 @@ mod board;
 use board::Board;
 
 mod piece_button;
-use piece_button::PieceButton;
+use piece_button::{PieceButton, PIECE_TYPES};
 
 
 fn main() -> Result<(), eframe::Error> {
@@ -104,17 +104,18 @@ impl<'a> ShogiGame<'a> {
     // runs in update function, renders piece_button based on board row/col
     fn render_pieces(&mut self, ui: &mut egui::Ui) {
 
+        let active = self.board.active;
+        let position_factor = 62.22;               // Multiplied by rank and file to get (x, y) position
+        let (offset_x, offset_y) = (106.5, 56.5);  // Offset from top-left
+        let board_size = 560.0;
+
         // board needs to be rendered before piece ImageButtons
         ui.add(egui::Image::new(egui::include_image!("images/boards/kaya1.jpg")));
 
         for rank in 0..9 {
             for file in 0..9 {
-
-                let active = self.board.active;
-                let position_factor = 62.22;               // Multiplied by rank and file to get position
-                let (offset_x, offset_y) = (106.5, 56.5);     // Offset from top-left
-                let board_size = 560.0;
-
+                
+                // Adjust button size if active
                 let (min, size) = if [rank as i32, file as i32] == active {
                     (
                         Pos2::new(board_size - ((file + 1) as f32 * position_factor) + offset_x - 2.5, rank as f32 * position_factor - 2.5 + offset_y),
@@ -176,10 +177,19 @@ impl<'a> ShogiGame<'a> {
                         self.board.set_active_moves(&self.pos, sq, piece)
                     }
                 }
+            }
+        }
 
+        // Render pieces in hand
+        for i in 0..14 {
+            let p = PIECE_TYPES[i];
+            let count = self.pos.hand(p);
+            if count != 0 {
+                let pb = PieceButton::new_piece(p);
                 
             }
         }
+        
     }
 }
 
