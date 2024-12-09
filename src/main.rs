@@ -16,8 +16,8 @@ use piece_button::{PieceButton, PIECE_TYPES};
 fn main() -> Result<(), eframe::Error> {
     shogi::bitboard::Factory::init();
 
-    let mut pos      = Position::new();
-    let mut board    = Board::new();
+    let mut pos = Position::new();
+    let mut board = Board::new();
     pos.set_sfen("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1").unwrap();
     
     let options = eframe::NativeOptions {
@@ -86,7 +86,7 @@ impl<'a> ShogiGame<'a> {
             );
         }
 
-        // render possible active moves 
+        // Render possible active moves 
         for rank in 0..9 {
             for file in 0..9 {
                 if self.board.active_moves[rank][file] {
@@ -100,39 +100,36 @@ impl<'a> ShogiGame<'a> {
         }
     }
 
-
-    // runs in update function, renders piece_button based on board row/col
+    // Runs in update function, renders piece_button based on board row/col
     fn render_pieces(&mut self, ui: &mut egui::Ui) {
-
-        let active = self.board.active;
+        let active      = self.board.active;
+        let active_hand = self.board.active_hand;
         let position_factor = 62.22;               // Multiplied by rank and file to get (x, y) position
         let (offset_x, offset_y) = (106.5, 56.5);  // Offset from top-left
         let board_size = 560.0;
 
-        // board needs to be rendered before piece ImageButtons
+        // Green fill/stroke for active pieces
+        let fill = egui::Color32::from_rgba_unmultiplied(60, 110, 40, 128);
+        let stroke = egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(60, 110, 40, 128));
+
+        // Board needs to be rendered before piece ImageButtons
         ui.add(egui::Image::new(egui::include_image!("images/boards/kaya1.jpg")));
 
         for rank in 0..9 {
             for file in 0..9 {
-                
-                // Adjust button size if active
-                let (min, size) = if [rank as i32, file as i32] == active {
-                    (
-                        Pos2::new(board_size - ((file + 1) as f32 * position_factor) + offset_x - 2.5, rank as f32 * position_factor - 2.5 + offset_y),
-                        Vec2::new(65.0, 65.0),
-                    )
-                } 
-                else {
-                    (
-                        Pos2::new(board_size - ((file + 1) as f32 * position_factor) + offset_x, rank as f32 * position_factor + offset_y),
-                        Vec2::new(60.0, 60.0),
-                    )
-                };
-                
+            
+                let (min, size) = (
+                    Pos2::new(board_size - ((file + 1) as f32 * position_factor) + offset_x, rank as f32 * position_factor + offset_y), 
+                    Vec2::new(60.0, 60.0)
+                );
                 let rect = Rect::from_min_size(min, size);
                 let curr_piece = &self.board.piece_buttons[rank][file]; // PieceButton
-    
-                // pass in curr_piece PieceButton's ImageButton to ui
+
+                if active == [rank as i32, file as i32] {
+                    ui.painter().rect(rect, 0.0, fill, stroke);
+                }
+
+                // Pass in curr_piece PieceButton's ImageButton to ui (ImageButton impl Widget)
                 if ui.put(rect, curr_piece.button.clone()).clicked() {
                     
                     // Try moving active piece into curr empty cell or capturing enemy piece
@@ -162,11 +159,11 @@ impl<'a> ShogiGame<'a> {
                             });  
                         }
 
-                        self.board.set_active(-1, -1);
-                        self.board.active_moves = [[false; 9]; 9];
+                        self.board.reset_activity();
                     }
-                    // change selection of ally piece
+                    // Change selection of ally piece
                     else if curr_piece.piece != None {
+                        self.board.reset_activity();
                         self.board.set_active(rank as i32, file as i32);
                        
                         // println!("Rank: {}", rank);
@@ -174,7 +171,18 @@ impl<'a> ShogiGame<'a> {
 
                         let sq = Square::new(file as u8, rank as u8).unwrap();
                         let piece = self.pos.piece_at(sq).unwrap();
-                        self.board.set_active_moves(&self.pos, sq, piece)
+                        self.board.set_active_moves(&self.pos, Some(sq), piece)
+                    }
+
+                    // Attempt drop move
+                    if active_hand != 69 {
+                        let to_sq = Square::new(file as u8, rank as u8).unwrap();
+                        let m = Move::Drop{to: to_sq, piece_type: PIECE_TYPES[active_hand].piece_type};
+                        self.pos.make_move(m).unwrap_or_else(|err| {
+                            self.error_message = format!("Error in make_move: {}", err);
+                            Default::default()
+                        });  
+                        self.board.reset_activity();
                     }
                 }
             }
@@ -187,11 +195,30 @@ impl<'a> ShogiGame<'a> {
             if count != 0 {
                 let pb = PieceButton::new_piece(p);
                 
+                let (x, y) = match p.color {
+                    shogi::Color::Black => (board_size + offset_x + 25.0, board_size - 10.0 - ((i % 7) as f32 * position_factor)),
+                    shogi::Color::White => (25.0, offset_y - 1.0 + (i % 7) as f32 * position_factor),
+                };
+
+                let min  = Pos2::new(x, y);
+                let size = Vec2::new(60.0, 60.0);
+                let rect = Rect::from_min_size(min, size);
+
+                if active_hand == i {
+                    ui.painter().rect(rect, 0.0, fill, stroke);
+                }
+
+                if ui.put(rect, pb.button).clicked() {
+                    self.board.reset_activity();
+                    self.board.set_active_hand(i);
+                    self.board.set_active_moves(&self.pos, None, p);
+                }
             }
         }
         
     }
 }
+
 
 impl<'a> eframe::App for ShogiGame<'_> {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
@@ -207,10 +234,10 @@ impl<'a> eframe::App for ShogiGame<'_> {
 
                     // ui.monospace(format!("{}", self.pos));
 
-                    if !self.error_message.is_empty() {
-                        ui.add_space(15.0);
-                        ui.label(format!("{}", self.error_message));
-                    }
+                    // if !self.error_message.is_empty() {
+                    //     ui.add_space(15.0);
+                    //     ui.label(format!("{}", self.error_message));
+                    // }
                 });
         }); 
     }
