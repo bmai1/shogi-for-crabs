@@ -69,6 +69,12 @@ impl<'a> PieceButton<'a> {
             (PieceType::ProKnight, Color::White) => {
                 ImageButton::new(include_image!("images/pieces/1NK.png")).frame(false)
             },
+            (PieceType::ProLance, Color::Black) => {
+                ImageButton::new(include_image!("images/pieces/0NY.png")).frame(false)
+            },
+            (PieceType::ProLance, Color::White) => {
+                ImageButton::new(include_image!("images/pieces/1NY.png")).frame(false)
+            },
             (PieceType::ProRook, Color::Black) => {
                 ImageButton::new(include_image!("images/pieces/0RY.png")).frame(false)
             },
@@ -104,6 +110,11 @@ impl<'a> PieceButton<'a> {
             button: ImageButton::new(include_image!("images/pieces/empty.png")).frame(false),
             piece: None,
         }
+    }
+
+    pub fn is_promoted(&self) -> bool {
+        let p = self.piece.unwrap().piece_type;
+        p == PieceType::ProPawn || p == PieceType::ProKnight || p == PieceType::ProLance || p == PieceType::ProSilver || p == PieceType::ProRook || p == PieceType::ProBishop
     }
 }
 

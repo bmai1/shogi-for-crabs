@@ -86,6 +86,15 @@ impl<'a> ShogiGame<'a> {
             );
         }
 
+        // Render promotion zone circles
+        let radius = 3.0;
+        let fill = egui::Color32::BLACK;
+        let stroke = egui::Stroke::new(1.0, egui::Color32::BLACK);
+        painter.circle(Pos2::new(3.0 * position_factor + offset_x, 3.0 * position_factor + offset_y), radius, fill, stroke);
+        painter.circle(Pos2::new(6.0 * position_factor + offset_x, 3.0 * position_factor + offset_y), radius, fill, stroke);
+        painter.circle(Pos2::new(3.0 * position_factor + offset_x, 6.0 * position_factor + offset_y), radius, fill, stroke);
+        painter.circle(Pos2::new(6.0 * position_factor + offset_x, 6.0 * position_factor + offset_y), radius, fill, stroke);
+        
         // Render possible active moves 
         for rank in 0..9 {
             for file in 0..9 {
@@ -152,7 +161,14 @@ impl<'a> ShogiGame<'a> {
 
                             self.error_message = format!("{} to {}", from_sq, to_sq);
 
-                            let m = Move::Normal{from: from_sq, to: to_sq, promote: false};
+                            // force promotion for now
+                            let m = if !active_piece.is_promoted() && (rank < 3 && self.pos.side_to_move() == shogi::Color::Black) || (rank > 5 && self.pos.side_to_move() == shogi::Color::White) {
+                                Move::Normal{from: from_sq, to: to_sq, promote: true}
+                            }
+                            else {
+                                Move::Normal{from: from_sq, to: to_sq, promote: false}
+                            };
+
                             self.pos.make_move(m).unwrap_or_else(|err| {
                                 self.error_message = format!("Error in make_move: {}", err);
                                 Default::default()
