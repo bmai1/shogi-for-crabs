@@ -57,7 +57,7 @@ fn main() -> Result<(), eframe::Error> {
     });
 
     let options = eframe::NativeOptions {
-        viewport: ViewportBuilder::default().with_inner_size([1000.0, 675.0]), 
+        viewport: ViewportBuilder::default().with_inner_size([1000.0, 675.0]).with_resizable(false), 
         ..Default::default()
     };
     eframe::run_native(
@@ -159,10 +159,6 @@ impl<'a> ShogiGame<'a> {
                     painter.circle(center, radius, fill, stroke);
                 }
             }
-        }
-
-        if !self.error_message.is_empty() {
-           painter.text(Pos2::new(offset_x, board_size + offset_y + 25.0), egui::Align2::LEFT_BOTTOM, format!("{}", self.error_message), egui::FontId::default(), egui::Color32::WHITE);
         }
     }
 
@@ -266,28 +262,34 @@ impl<'a> ShogiGame<'a> {
         // Render pieces in hand
         for i in 0..14 {
             let p = PIECE_TYPES[i];
+            let pb = PieceButton::new_piece(p);
             let count = self.pos.hand(p);
+
+            let (x, y) = match p.color {
+                shogi::Color::Black => (board_size + offset_x + 25.0, board_size - 10.0 - ((i % 7) as f32 * position_factor)),
+                shogi::Color::White => (25.0, offset_y - 1.0 + (i % 7) as f32 * position_factor),
+            };
+
+            let min  = Pos2::new(x, y);
+            let size = Vec2::new(60.0, 60.0);
+            let rect = Rect::from_min_size(min, size);
+
             if count != 0 {
-                let pb = PieceButton::new_piece(p);
-                
-                let (x, y) = match p.color {
-                    shogi::Color::Black => (board_size + offset_x + 25.0, board_size - 10.0 - ((i % 7) as f32 * position_factor)),
-                    shogi::Color::White => (25.0, offset_y - 1.0 + (i % 7) as f32 * position_factor),
-                };
-
-                let min  = Pos2::new(x, y);
-                let size = Vec2::new(60.0, 60.0);
-                let rect = Rect::from_min_size(min, size);
-
                 if active_hand == i {
                     ui.painter().rect(rect, 0.0, fill, stroke);
                 }
-
                 if ui.put(rect, pb.button).clicked() {
                     self.board.reset_activity();
                     self.board.set_active_hand(i);
                     self.board.set_active_moves(&self.pos, None, p);
                 }
+            }
+            else {
+                ui.put(rect, pb.button);
+                // semi-opaque
+                let fill = egui::Color32::from_rgba_unmultiplied(23, 23, 23, 128);
+                let stroke = egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(23, 23, 23, 128));
+                ui.painter().rect(rect, 0.0, fill, stroke);
             }
         }
         
@@ -306,7 +308,9 @@ impl<'a> eframe::App for ShogiGame<'_> {
                     self.render_grid(ui); 
 
                     // APERY ENGINE 
-                    if self.pos.side_to_move() == shogi::Color::White { 
+                    ui.add_space(390.0);
+                    // if self.pos.side_to_move() == shogi::Color::White
+                    if ui.button("Make Engine Move").clicked() { 
                         writeln!(self.engine_input, "position sfen {}", self.pos.to_sfen());
                         writeln!(self.engine_input, "go byoyomi 3000");
 
@@ -327,6 +331,9 @@ impl<'a> eframe::App for ShogiGame<'_> {
                                 break;
                             }
                         }
+                    }
+                    if !self.error_message.is_empty() {
+                        ui.label(format!("{}", self.error_message));
                     }
                 });
         }); 
