@@ -175,16 +175,15 @@ impl<'a> ShogiGame<'a> {
                     }
 
                     // Attempt drop move if active hand matches side to move
-                    if active_hand != 69 && (
-                        self.pos.side_to_move() == shogi::Color::Black && active_hand >= 7) || (
-                        self.pos.side_to_move() == shogi::Color::White && active_hand < 7) {
-
-                        let to_sq = Square::new(file as u8, rank as u8).unwrap();
-                        let m = Move::Drop{to: to_sq, piece_type: PIECE_TYPES[active_hand].piece_type};
-                        self.pos.make_move(m).unwrap_or_else(|err| {
-                            self.error_message = format!("Error in make_move: {}", err);
-                            Default::default()
-                        });  
+                    if active_hand != 69 {
+                        if (self.pos.side_to_move() == shogi::Color::Black && active_hand >= 7) || (self.pos.side_to_move() == shogi::Color::White && active_hand < 7) {
+                            let to_sq = Square::new(file as u8, rank as u8).unwrap();
+                            let m = Move::Drop{to: to_sq, piece_type: PIECE_TYPES[active_hand].piece_type};
+                            self.pos.make_move(m).unwrap_or_else(|err| {
+                                self.error_message = format!("Error in make_move: {}", err);
+                                Default::default()
+                            });  
+                        }
                         self.board.reset_activity();
                     }
                 }
