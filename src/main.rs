@@ -12,14 +12,50 @@ use board::Board;
 mod piece_button;
 use piece_button::{PieceButton, PIECE_TYPES};
 
+use std::process::{Command, Stdio, ChildStdin, ChildStdout};
+use std::sync::mpsc;
+use std::thread;
+use std::io::{BufRead, BufReader, Write};
+use std::sync::{Arc, Mutex};
 
 fn main() -> Result<(), eframe::Error> {
     shogi::bitboard::Factory::init();
 
     let mut pos = Position::new();
     let mut board = Board::new();
-    pos.set_sfen("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1").unwrap();
+    pos.set_sfen("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1").unwrap();  
     
+    let mut child = Command::new("./target/debug/apery")
+        .current_dir("apery_rust")
+        .stdin(Stdio::piped())  // Capture stdin to send commands
+        .stdout(Stdio::piped()) // Capture stdout to read responses
+        .stderr(Stdio::piped()) // Capture stderr for debugging
+        .spawn()
+        .expect("Failed to start Shogi engine");
+
+    let engine_input = child.stdin.take().expect("Failed to open stdin");
+    let engine_output = child.stdout.take().expect("Failed to open stdout");
+
+    let (tx, rx) = mpsc::channel::<String>();
+
+    thread::spawn(move || {
+        let reader = BufReader::new(engine_output);
+        for line in reader.lines() {
+            match line {
+                Ok(output) => {
+                    if let Err(err) = tx.send(output) {
+                        eprintln!("Error sending engine output: {}", err);
+                        break;
+                    }
+                }
+                Err(err) => {
+                    eprintln!("Error reading engine output: {}", err);
+                    break;
+                }
+            }
+        }
+    });
+
     let options = eframe::NativeOptions {
         viewport: ViewportBuilder::default().with_inner_size([1000.0, 675.0]), 
         ..Default::default()
@@ -29,7 +65,13 @@ fn main() -> Result<(), eframe::Error> {
         options,
         Box::new(|cc| {
             egui_extras::install_image_loaders(&cc.egui_ctx);
-            Ok(Box::new(ShogiGame::new(&cc.egui_ctx, pos, board)))
+            Ok(Box::new(ShogiGame::new(
+                &cc.egui_ctx, 
+                pos, 
+                board,
+                engine_input,
+                rx,
+            )))
         }),
     )
 }
@@ -38,11 +80,22 @@ struct ShogiGame<'a> {
     pos: Position,
     board: Board<'a>,
     error_message: String,
+    engine_input: ChildStdin,
+    engine_output_rx: mpsc::Receiver<String>, // Receiver for engine output
 }
 
 impl<'a> ShogiGame<'a> {
-    fn new(_ctx: &Context, pos: Position, board: Board<'a>) -> Self {
-        Self { pos, board, error_message: String::new()}
+    fn new(_ctx: &Context, pos: Position, board: Board<'a>, mut engine_input: ChildStdin, engine_output_rx: mpsc::Receiver<String>) -> Self {
+
+        writeln!(engine_input, "isready"); // Start the shogi engine
+
+        Self { 
+            pos, 
+            board, 
+            error_message: String::new(), 
+            engine_input, 
+            engine_output_rx, 
+        }
     }
     
     fn render_grid(&mut self, ui: &mut egui::Ui) {
@@ -107,6 +160,10 @@ impl<'a> ShogiGame<'a> {
                 }
             }
         }
+
+        if !self.error_message.is_empty() {
+           painter.text(Pos2::new(offset_x, board_size + offset_y + 25.0), egui::Align2::LEFT_BOTTOM, format!("{}", self.error_message), egui::FontId::default(), egui::Color32::WHITE);
+        }
     }
 
     // Runs in update function, renders piece_button based on board row/col
@@ -159,7 +216,7 @@ impl<'a> ShogiGame<'a> {
                             // println!("{}", from_sq);
                             // println!("{}", to_sq);
 
-                            self.error_message = format!("{} to {}", from_sq, to_sq);
+                            self.error_message = format!("{}{}", from_sq, to_sq);
 
                             // force promotion for now
                             let m = if !active_piece.is_promoted() && (rank < 3 && self.pos.side_to_move() == shogi::Color::Black) || (rank > 5 && self.pos.side_to_move() == shogi::Color::White) {
@@ -237,7 +294,6 @@ impl<'a> ShogiGame<'a> {
     }
 }
 
-
 impl<'a> eframe::App for ShogiGame<'_> {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
         CentralPanel::default().show(ctx, |ui| {
@@ -246,16 +302,32 @@ impl<'a> eframe::App for ShogiGame<'_> {
                 .show(ui, |ui| {
 
                     self.board.update_board(&self.pos);
-
                     self.render_pieces(ui);
                     self.render_grid(ui); 
 
-                    // ui.monospace(format!("{}", self.pos));
+                    // APERY ENGINE 
+                    if self.pos.side_to_move() == shogi::Color::White { 
+                        writeln!(self.engine_input, "position sfen {}", self.pos.to_sfen());
+                        writeln!(self.engine_input, "go byoyomi 3000");
 
-                    // if !self.error_message.is_empty() {
-                    //     ui.add_space(15.0);
-                    //     ui.label(format!("{}", self.error_message));
-                    // }
+                        while let Ok(line) = self.engine_output_rx.recv() {
+                            if line.starts_with("bestmove") {
+                                let parts: Vec<&str> = line.split_whitespace().collect();
+                                let best_move = parts[1].to_string();
+
+                                // println!("{}", self.pos.to_sfen());
+                                // println!("{}", best_move);
+                                self.error_message = format!("{}", best_move);
+
+                                let m = Move::from_sfen(&best_move).unwrap();
+                                self.pos.make_move(m).unwrap_or_else(|err| {
+                                    self.error_message = format!("Error in make_move: {}", err);
+                                    Default::default()
+                                });
+                                break;
+                            }
+                        }
+                    }
                 });
         }); 
     }
