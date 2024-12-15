@@ -8,7 +8,7 @@ Gote (White)
     KY (香): Lance, or "Kyousha" (香車), meaning "fragrant chariot."
     KE (桂): Knight, or "Keima" (桂馬).
     KI (金): Gold General, or "Kinshou" (金将).
-    OU (王) or GY (玉): King, or "Ou" (王) or "Gyokushou" (玉将) depending on the player's side.
+    OU (王) or GY (玉): King, or "Ou" (王) or "Gyokushou" (玉将) depending on the player's side. 王 for White (Sente)
     TO (と): Promoted Pawn (FU) "Tokin" (と金).
     NG (全): Promoted Silver (GI) "Narigin" (成銀). 
     NK (圭): Promoted Knight (KE) "Narikei" (成桂). 

@@ -25,7 +25,7 @@ impl<'a> PieceButton<'a> {
                 ImageButton::new(include_image!("images/pieces/0GY.png")).frame(false)
             },
             (PieceType::King, Color::White) => {
-                ImageButton::new(include_image!("images/pieces/1GY.png")).frame(false)
+                ImageButton::new(include_image!("images/pieces/1OU.png")).frame(false)
             },
             (PieceType::Rook, Color::Black) => {
                 ImageButton::new(include_image!("images/pieces/0HI.png")).frame(false)
@@ -56,6 +56,36 @@ impl<'a> PieceButton<'a> {
             },
             (PieceType::Lance, Color::White) => {
                 ImageButton::new(include_image!("images/pieces/1KY.png")).frame(false)
+            },
+            (PieceType::ProSilver, Color::Black) => {
+                ImageButton::new(include_image!("images/pieces/0NG.png")).frame(false)
+            },
+            (PieceType::ProSilver, Color::White) => {
+                ImageButton::new(include_image!("images/pieces/1NG.png")).frame(false)
+            },
+            (PieceType::ProKnight, Color::Black) => {
+                ImageButton::new(include_image!("images/pieces/0NK.png")).frame(false)
+            },
+            (PieceType::ProKnight, Color::White) => {
+                ImageButton::new(include_image!("images/pieces/1NK.png")).frame(false)
+            },
+            (PieceType::ProRook, Color::Black) => {
+                ImageButton::new(include_image!("images/pieces/0RY.png")).frame(false)
+            },
+            (PieceType::ProRook, Color::White) => {
+                ImageButton::new(include_image!("images/pieces/1RY.png")).frame(false)
+            },
+            (PieceType::ProPawn, Color::Black) => {
+                ImageButton::new(include_image!("images/pieces/0TO.png")).frame(false)
+            },
+            (PieceType::ProPawn, Color::White) => {
+                ImageButton::new(include_image!("images/pieces/1TO.png")).frame(false)
+            },
+            (PieceType::ProBishop, Color::Black) => {
+                ImageButton::new(include_image!("images/pieces/0UM.png")).frame(false)
+            },
+            (PieceType::ProBishop, Color::White) => {
+                ImageButton::new(include_image!("images/pieces/1UM.png")).frame(false)
             },
             _ => {
                 ImageButton::new(include_image!("images/pieces/empty.png")).frame(false)
