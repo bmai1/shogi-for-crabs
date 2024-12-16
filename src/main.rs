@@ -209,11 +209,6 @@ impl<'a> ShogiGame<'a> {
                             let from_sq = Square::new(active[1] as u8, active[0] as u8).unwrap();
                             let to_sq = Square::new(file as u8, rank as u8).unwrap();
 
-                            // println!("{}", from_sq);
-                            // println!("{}", to_sq);
-
-                            self.error_message = format!("{}{}", from_sq, to_sq);
-
                             // force promotion for now
                             let m = if !active_piece.is_promoted() && (rank < 3 && self.pos.side_to_move() == shogi::Color::Black) || (rank > 5 && self.pos.side_to_move() == shogi::Color::White) {
                                 Move::Normal{from: from_sq, to: to_sq, promote: true}
@@ -226,12 +221,14 @@ impl<'a> ShogiGame<'a> {
                                 self.error_message = format!("Error in make_move: {}", err);
                                 Default::default()
                             });  
+
+                            self.error_message = format!("{}{}", from_sq, to_sq);
                         }
 
                         self.board.reset_activity();
                     }
                     // Change selection of ally piece
-                    else if curr_piece.piece != None {
+                    else if curr_piece.piece != None && curr_piece.piece.unwrap().color == self.pos.side_to_move() {
                         self.board.reset_activity();
                         self.board.set_active(rank as i32, file as i32);
                        
@@ -252,6 +249,8 @@ impl<'a> ShogiGame<'a> {
                                 self.error_message = format!("Error in make_move: {}", err);
                                 Default::default()
                             });  
+
+                            self.error_message = format!("{}", m);
                         }
                         self.board.reset_activity();
                     }
@@ -278,7 +277,7 @@ impl<'a> ShogiGame<'a> {
                 if active_hand == i {
                     ui.painter().rect(rect, 0.0, fill, stroke);
                 }
-                if ui.put(rect, pb.button).clicked() {
+                if ui.put(rect, pb.button).clicked() && p.color == self.pos.side_to_move() {
                     self.board.reset_activity();
                     self.board.set_active_hand(i);
                     self.board.set_active_moves(&self.pos, None, p);
