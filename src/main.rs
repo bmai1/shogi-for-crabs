@@ -327,6 +327,8 @@ impl<'a> eframe::App for ShogiGame<'_> {
                                     self.error_message = format!("Error in make_move: {}", err);
                                     Default::default()
                                 });
+
+                                self.board.reset_activity();
                                 break;
                             }
                         }
