@@ -1,49 +1,45 @@
 #![allow(unused)]
 
-use eframe::egui::{
-    self, CentralPanel, Context, ViewportBuilder, Rect, Vec2, Pos2,
-};
-
+use eframe::egui::{self, CentralPanel, Context, ViewportBuilder, Rect, Vec2, Pos2};
 use shogi::{Position, Square, Move};
+use std::process::{Command, Stdio, ChildStdin, ChildStdout};
+use std::sync::{mpsc, Arc, Mutex};
+use std::thread;
+use std::io::{BufRead, BufReader, Write};
 
 mod board;
 use board::Board;
-
 mod piece_button;
 use piece_button::{PieceButton, PIECE_TYPES};
-
-use std::process::{Command, Stdio, ChildStdin, ChildStdout};
-use std::sync::mpsc;
-use std::thread;
-use std::io::{BufRead, BufReader, Write};
-use std::sync::{Arc, Mutex};
+mod joystick;
+use joystick::Joystick;
 
 fn main() -> Result<(), eframe::Error> {
     shogi::bitboard::Factory::init();
-
     let mut pos = Position::new();
     let mut board = Board::new();
     pos.set_sfen("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1").unwrap();  
     
+    // Run engine
     let mut child = Command::new("./target/debug/apery")
         .current_dir("apery_rust")
-        .stdin(Stdio::piped())  // Capture stdin to send commands
-        .stdout(Stdio::piped()) // Capture stdout to read responses
-        .stderr(Stdio::piped()) // Capture stderr for debugging
+        .stdin(Stdio::piped())  
+        .stdout(Stdio::piped()) 
+        .stderr(Stdio::piped())
         .spawn()
         .expect("Failed to start Shogi engine");
 
     let engine_input = child.stdin.take().expect("Failed to open stdin");
     let engine_output = child.stdout.take().expect("Failed to open stdout");
 
-    let (tx, rx) = mpsc::channel::<String>();
+    let (engine_tx, engine_rx) = mpsc::channel::<String>();
 
     thread::spawn(move || {
         let reader = BufReader::new(engine_output);
         for line in reader.lines() {
             match line {
                 Ok(output) => {
-                    if let Err(err) = tx.send(output) {
+                    if let Err(err) = engine_tx.send(output) {
                         eprintln!("Error sending engine output: {}", err);
                         break;
                     }
@@ -70,7 +66,7 @@ fn main() -> Result<(), eframe::Error> {
                 pos, 
                 board,
                 engine_input,
-                rx,
+                engine_rx,
             )))
         }),
     )
@@ -81,23 +77,35 @@ struct ShogiGame<'a> {
     board: Board<'a>,
     error_message: String,
     engine_input: ChildStdin,
-    engine_output_rx: mpsc::Receiver<String>, // Receiver for engine output
+    engine_rx: mpsc::Receiver<String>,
+    joystick_rx: mpsc::Receiver<(i32, i32, i32)>,
+    joystick_state: (i32, i32, i32),
 }
 
 impl<'a> ShogiGame<'a> {
-    fn new(_ctx: &Context, pos: Position, board: Board<'a>, mut engine_input: ChildStdin, engine_output_rx: mpsc::Receiver<String>) -> Self {
+    fn new(_ctx: &Context, pos: Position, board: Board<'a>, mut engine_input: ChildStdin, engine_rx: mpsc::Receiver<String>) -> Self {
 
-        writeln!(engine_input, "isready"); // Start the shogi engine
+        writeln!(engine_input, "isready"); // Start engine
+
+        // Start reading joystick
+        let (joystick_tx, joystick_rx) = mpsc::channel();
+        let mut joystick = Joystick::new();
+        thread::spawn(move || {
+            joystick.init(joystick_tx);
+        });
 
         Self { 
             pos, 
             board, 
             error_message: String::new(), 
             engine_input, 
-            engine_output_rx, 
+            engine_rx, 
+            joystick_rx,
+            joystick_state: (-1, -1, -1),
         }
     }
-    
+
+    // Renders grid lines, promotion zone circles, and possible active moves
     fn render_grid(&mut self, ui: &mut egui::Ui) {
 
         let position_factor = 62.22;              // Multiplied by rank and file to get position (560 / 9 = 62.22)
@@ -121,7 +129,7 @@ impl<'a> ShogiGame<'a> {
                 egui::FontId::default(),
                 egui::Color32::GRAY,
             );
-    
+
             // Paint cols 9-1
             let x      = label as f32 * position_factor + offset_x;
             let start  = Pos2::new(x, offset_y);
@@ -162,21 +170,29 @@ impl<'a> ShogiGame<'a> {
         }
     }
 
-    // Runs in update function, renders piece_button based on board row/col
+    // Renders piece_buttons on board based on rank and file. Also renders pieces in hand and joystick location.
     fn render_pieces(&mut self, ui: &mut egui::Ui) {
         let active      = self.board.active;
         let active_hand = self.board.active_hand;
         let position_factor = 62.22;               // Multiplied by rank and file to get (x, y) position
         let (offset_x, offset_y) = (106.5, 56.5);  // Offset from top-left
         let board_size = 560.0;
-
+    
+        let mut switch_flag = false;
+        if let Ok((switch, j_rank, j_file)) = self.joystick_rx.try_recv() {
+            // Detect when switch changes from 0 to 1 to simulate one click
+            switch_flag = self.joystick_state.0 == 1 && switch == 0;
+            self.joystick_state = (switch, j_rank, j_file);
+        }
+        let (switch, j_rank, j_file) = self.joystick_state;
+    
         // Green fill/stroke for active pieces
         let fill = egui::Color32::from_rgba_unmultiplied(60, 110, 40, 128);
         let stroke = egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(60, 110, 40, 128));
-
+    
         // Board needs to be rendered before piece ImageButtons
         ui.add(egui::Image::new(egui::include_image!("images/boards/kaya1.jpg")));
-
+    
         for rank in 0..9 {
             for file in 0..9 {
             
@@ -186,45 +202,45 @@ impl<'a> ShogiGame<'a> {
                 );
                 let rect = Rect::from_min_size(min, size);
                 let curr_piece = &self.board.piece_buttons[rank][file]; // PieceButton
-
+    
+                // Marks active square
                 if active == [rank as i32, file as i32] {
                     ui.painter().rect(rect, 0.0, fill, stroke);
                 }
-
-                // Pass in curr_piece PieceButton's ImageButton to ui (ImageButton impl Widget)
-                if ui.put(rect, curr_piece.button.clone()).clicked() {
-                    
+    
+                if ui.put(rect, curr_piece.button.clone()).clicked() || (switch_flag && j_rank == rank as i32 && (8 - j_file) == file as i32) {
+    
                     // Try moving active piece into curr empty cell or capturing enemy piece
                     if active != [-1, -1] {
             
                         let active_piece = &self.board.piece_buttons[active[0] as usize][active[1] as usize];
-
+    
                         if active_piece.piece != None && 
                             (curr_piece.piece == None || 
                             (curr_piece.piece != None && curr_piece.piece.unwrap().color != active_piece.piece.unwrap().color)) {
-
+    
                             // FILE ORDER IS REVERSED, GOES FROM 9 to 1, rank a-i
                             // Square::new(file, rank), FILE FIRST
-
+    
                             let from_sq = Square::new(active[1] as u8, active[0] as u8).unwrap();
                             let to_sq = Square::new(file as u8, rank as u8).unwrap();
-
-                            // force promotion for now
+    
+                            // Force promotion for now
                             let m = if !active_piece.is_promoted() && (rank < 3 && self.pos.side_to_move() == shogi::Color::Black) || (rank > 5 && self.pos.side_to_move() == shogi::Color::White) {
                                 Move::Normal{from: from_sq, to: to_sq, promote: true}
                             }
                             else {
                                 Move::Normal{from: from_sq, to: to_sq, promote: false}
                             };
-
+    
+                            self.error_message = format!("{}{}", from_sq, to_sq);
+    
                             self.pos.make_move(m).unwrap_or_else(|err| {
                                 self.error_message = format!("Error in make_move: {}", err);
                                 Default::default()
                             });  
-
-                            self.error_message = format!("{}{}", from_sq, to_sq);
                         }
-
+    
                         self.board.reset_activity();
                     }
                     // Change selection of ally piece
@@ -234,12 +250,12 @@ impl<'a> ShogiGame<'a> {
                        
                         // println!("Rank: {}", rank);
                         // println!("File: {}", 9 - file);
-
+    
                         let sq = Square::new(file as u8, rank as u8).unwrap();
                         let piece = self.pos.piece_at(sq).unwrap();
                         self.board.set_active_moves(&self.pos, Some(sq), piece)
                     }
-
+    
                     // Attempt drop move if active hand matches side to move
                     if active_hand != 69 {
                         if (self.pos.side_to_move() == shogi::Color::Black && active_hand >= 7) || (self.pos.side_to_move() == shogi::Color::White && active_hand < 7) {
@@ -249,7 +265,7 @@ impl<'a> ShogiGame<'a> {
                                 self.error_message = format!("Error in make_move: {}", err);
                                 Default::default()
                             });  
-
+    
                             self.error_message = format!("{}", m);
                         }
                         self.board.reset_activity();
@@ -257,22 +273,22 @@ impl<'a> ShogiGame<'a> {
                 }
             }
         }
-
+    
         // Render pieces in hand
         for i in 0..14 {
             let p = PIECE_TYPES[i];
             let pb = PieceButton::new_piece(p);
             let count = self.pos.hand(p);
-
+    
             let (x, y) = match p.color {
                 shogi::Color::Black => (board_size + offset_x + 25.0, board_size - 10.0 - ((i % 7) as f32 * position_factor)),
                 shogi::Color::White => (25.0, offset_y - 1.0 + (i % 7) as f32 * position_factor),
             };
-
+    
             let min  = Pos2::new(x, y);
             let size = Vec2::new(60.0, 60.0);
             let rect = Rect::from_min_size(min, size);
-
+    
             if count != 0 {
                 if active_hand == i {
                     ui.painter().rect(rect, 0.0, fill, stroke);
@@ -285,13 +301,46 @@ impl<'a> ShogiGame<'a> {
             }
             else {
                 ui.put(rect, pb.button);
-                // semi-opaque
+                // Semi-opaque hand pieces with count 0
                 let fill = egui::Color32::from_rgba_unmultiplied(23, 23, 23, 128);
                 let stroke = egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(23, 23, 23, 128));
                 ui.painter().rect(rect, 0.0, fill, stroke);
             }
         }
-        
+    
+        // Joystick location
+        if switch != -1 {
+            let (min, size) = (
+                Pos2::new(board_size - ((9 - j_file) as f32 * position_factor) + offset_x, j_rank as f32 * position_factor + offset_y),
+                Vec2::new(60.0, 60.0),
+            );
+            let rect = Rect::from_min_size(min, size);
+            ui.painter().rect(rect, 0.0, fill, stroke);
+            // self.error_message = format!("{} {} {}", switch, rank, file);
+        }
+    }
+
+    // APERY ENGINE
+    fn make_engine_move(&mut self) {
+        writeln!(self.engine_input, "position sfen {}", self.pos.to_sfen());
+        writeln!(self.engine_input, "go byoyomi 3000");
+
+        while let Ok(line) = self.engine_rx.recv() {
+            if line.starts_with("bestmove") {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                let best_move = parts[1].to_string();
+                self.error_message = format!("{}", best_move);
+
+                let m = Move::from_sfen(&best_move).unwrap();
+                self.pos.make_move(m).unwrap_or_else(|err| {
+                    self.error_message = format!("Error in make_move: {}", err);
+                    Default::default()
+                });
+
+                self.board.reset_activity();
+                break;
+            }
+        }
     }
 }
 
@@ -301,41 +350,19 @@ impl<'a> eframe::App for ShogiGame<'_> {
             egui::Frame::default()
                 .inner_margin(egui::Margin { left: 100.0, right: 100.0, top: 50.0, bottom: 50.0 })
                 .show(ui, |ui| {
-
                     self.board.update_board(&self.pos);
                     self.render_pieces(ui);
                     self.render_grid(ui); 
 
-                    // APERY ENGINE 
                     ui.add_space(390.0);
-                    // if self.pos.side_to_move() == shogi::Color::White
                     if ui.button("Make Engine Move").clicked() { 
-                        writeln!(self.engine_input, "position sfen {}", self.pos.to_sfen());
-                        writeln!(self.engine_input, "go byoyomi 3000");
-
-                        while let Ok(line) = self.engine_output_rx.recv() {
-                            if line.starts_with("bestmove") {
-                                let parts: Vec<&str> = line.split_whitespace().collect();
-                                let best_move = parts[1].to_string();
-
-                                // println!("{}", self.pos.to_sfen());
-                                // println!("{}", best_move);
-                                self.error_message = format!("{}", best_move);
-
-                                let m = Move::from_sfen(&best_move).unwrap();
-                                self.pos.make_move(m).unwrap_or_else(|err| {
-                                    self.error_message = format!("Error in make_move: {}", err);
-                                    Default::default()
-                                });
-
-                                self.board.reset_activity();
-                                break;
-                            }
-                        }
+                        self.make_engine_move();
                     }
                     if !self.error_message.is_empty() {
                         ui.label(format!("{}", self.error_message));
                     }
+
+                    ctx.request_repaint(); // Manual repaint for joystick
                 });
         }); 
     }

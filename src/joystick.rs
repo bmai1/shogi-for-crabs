@@ -1,27 +1,15 @@
 use std::time::Duration;
 use std::io::{BufRead, BufReader};
-use std::sync::mpsc;
+use std::sync::mpsc::Sender;
 
-pub struct Joystick {
-    pub switch: i32,
-    pub x: i32,
-    pub y: i32,
-    pub rank: u8,
-    pub file: u8,
-}
+pub struct Joystick;
 
 impl Joystick {
     pub fn new() -> Self { 
-        Self { 
-            switch: 0, 
-            x: 0, 
-            y: 0, 
-            rank: 0, 
-            file: 0,
-        }
+        Self 
     }
 
-    pub fn init(&mut self) {
+    pub fn init(&mut self, tx: Sender<(i32, i32, i32)>) {
         let port_name = "/dev/tty.usbmodem101";
         let baud_rate = 9600;
 
@@ -41,18 +29,22 @@ impl Joystick {
                             buffer.push(data);
                             if buffer.len() == 3 {
                                 if let Some((switch, x, y)) = self.parse_joystick_data(&buffer) {
-                                    self.switch = switch;
-                                    self.x = x;
-                                    self.y = y;
-
-                                    // Map x and y to rank and file (0..9)
+                                    // Map x and y to rank and file (0..8)
                                     // X = 0 (left), 517 (rest), 1023 (right)
                                     // Y = 0 (up),   518 (rest), 1023 (down)
-                                    self.rank = (y / 102).min(9) as u8;
-                                    self.file = (x / 102).min(9) as u8;
                                     
-                                    println!("Switch: {}, X: {}, Y: {}, Rank: {}, File: {}", 
-                                        self.switch, self.x, self.y, self.rank, self.file);
+                                    let joystick_center = 517;
+                                    let joystick_max    = 1023;
+                                    let rank = ((y as f32 / joystick_max as f32) * 8.0).round().clamp(0.0, 8.0) as i32;
+                                    let file = ((x as f32 / joystick_max as f32) * 8.0).round().clamp(0.0, 8.0) as i32;
+
+                                    // println!("Switch: {}, X: {}, Y: {}, Rank: {}, File: {}", 
+                                    //     switch, x, y, rank, file);
+
+                                    if tx.send((switch, rank, file)).is_err() {
+                                        eprintln!("Joystick data send failed");
+                                        break;
+                                    }
                                 }
                                 buffer.clear();
                             }
@@ -80,18 +72,6 @@ impl Joystick {
         } 
         else {
             None
-        }
-    }
-}
-
-impl Clone for Joystick {
-    fn clone(&self) -> Self {
-        Self {
-            switch: self.switch,
-            x: self.x,
-            y: self.y,
-            rank: self.rank,
-            file: self.file,
         }
     }
 }
