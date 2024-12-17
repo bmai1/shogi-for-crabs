@@ -212,9 +212,9 @@ impl<'a> ShogiGame<'a> {
     
                     // Try moving active piece into curr empty cell or capturing enemy piece
                     if active != [-1, -1] {
-            
+                        
                         let active_piece = &self.board.piece_buttons[active[0] as usize][active[1] as usize];
-    
+
                         if active_piece.piece != None && 
                             (curr_piece.piece == None || 
                             (curr_piece.piece != None && curr_piece.piece.unwrap().color != active_piece.piece.unwrap().color)) {
@@ -233,42 +233,47 @@ impl<'a> ShogiGame<'a> {
                                 Move::Normal{from: from_sq, to: to_sq, promote: false}
                             };
     
-                            self.error_message = format!("{}{}", from_sq, to_sq);
-    
+                            self.error_message = format!("{}", m); // Placed before potential error to not override
                             self.pos.make_move(m).unwrap_or_else(|err| {
                                 self.error_message = format!("Error in make_move: {}", err);
                                 Default::default()
                             });  
                         }
-    
-                        self.board.reset_activity();
+
+                        // Change selection of ally piece (active piece is same color as curr piece but different location)
+                        if active_piece.piece != None && curr_piece.piece != None && curr_piece.piece.unwrap().color == active_piece.piece.unwrap().color && active != [rank as i32, file as i32] {
+                            self.board.reset_activity();
+                            self.board.set_active(rank as i32, file as i32);
+                            let sq = Square::new(file as u8, rank as u8).unwrap();
+                            let piece = self.pos.piece_at(sq).unwrap();
+                            self.board.set_active_moves(&self.pos, Some(sq), piece)
+                        }
+                        else {
+                            self.board.reset_activity();
+                        }
                     }
-                    // Change selection of ally piece
+                    // Clicked side to move piece from inactive
                     else if curr_piece.piece != None && curr_piece.piece.unwrap().color == self.pos.side_to_move() {
                         self.board.reset_activity();
                         self.board.set_active(rank as i32, file as i32);
-                       
-                        // println!("Rank: {}", rank);
-                        // println!("File: {}", 9 - file);
-    
                         let sq = Square::new(file as u8, rank as u8).unwrap();
                         let piece = self.pos.piece_at(sq).unwrap();
                         self.board.set_active_moves(&self.pos, Some(sq), piece)
                     }
     
                     // Attempt drop move if active hand matches side to move
-                    if active_hand != 69 {
+                    else if active_hand != 69 {
                         if (self.pos.side_to_move() == shogi::Color::Black && active_hand >= 7) || (self.pos.side_to_move() == shogi::Color::White && active_hand < 7) {
                             let to_sq = Square::new(file as u8, rank as u8).unwrap();
                             let m = Move::Drop{to: to_sq, piece_type: PIECE_TYPES[active_hand].piece_type};
+
+                            self.error_message = format!("{}", m);
                             self.pos.make_move(m).unwrap_or_else(|err| {
                                 self.error_message = format!("Error in make_move: {}", err);
                                 Default::default()
                             });  
-    
-                            self.error_message = format!("{}", m);
                         }
-                        self.board.reset_activity();
+                        self.board.reset_activity();         
                     }
                 }
             }
@@ -355,7 +360,7 @@ impl<'a> eframe::App for ShogiGame<'_> {
                     self.render_grid(ui); 
 
                     ui.add_space(390.0);
-                    if ui.button("Make Engine Move").clicked() { 
+                    if ui.button(format!("Make Engine Move ({})", self.pos.side_to_move())).clicked() { 
                         self.make_engine_move();
                     }
                     if !self.error_message.is_empty() {
