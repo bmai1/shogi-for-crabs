@@ -226,7 +226,7 @@ impl<'a> ShogiGame<'a> {
                             let to_sq = Square::new(file as u8, rank as u8).unwrap();
     
                             // Force promotion for now
-                            let m = if !active_piece.is_promoted() && (rank < 3 && self.pos.side_to_move() == shogi::Color::Black) || (rank > 5 && self.pos.side_to_move() == shogi::Color::White) {
+                            let m = if !active_piece.is_promoted() && ((rank < 3 && self.pos.side_to_move() == shogi::Color::Black) || (rank > 5 && self.pos.side_to_move() == shogi::Color::White)) {
                                 Move::Normal{from: from_sq, to: to_sq, promote: true}
                             }
                             else {
