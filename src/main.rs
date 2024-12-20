@@ -191,7 +191,7 @@ impl<'a> ShogiGame<'a> {
         let stroke = egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(60, 110, 40, 128));
     
         // Board needs to be rendered before piece ImageButtons
-        ui.add(egui::Image::new(egui::include_image!("images/boards/kaya1.jpg")));
+        ui.add(egui::Image::new(egui::include_image!("images/boards/painting1.jpg")));
     
         for rank in 0..9 {
             for file in 0..9 {
