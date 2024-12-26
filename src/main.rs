@@ -53,7 +53,7 @@ fn main() -> Result<(), eframe::Error> {
     });
 
     let options = eframe::NativeOptions {
-        viewport: ViewportBuilder::default().with_inner_size([1000.0, 675.0]).with_resizable(false), 
+        viewport: ViewportBuilder::default().with_inner_size([780.0, 700.0]).with_resizable(true), 
         ..Default::default()
     };
     eframe::run_native(
@@ -75,9 +75,11 @@ fn main() -> Result<(), eframe::Error> {
 struct ShogiGame<'a> {
     pos: Position,
     board: Board<'a>,
+    promotion_flag: bool,
     error_message: String,
     engine_input: ChildStdin,
     engine_rx: mpsc::Receiver<String>,
+    engine_ms: String,
     joystick_rx: mpsc::Receiver<(i32, i32, i32)>,
     joystick_state: (i32, i32, i32),
 }
@@ -97,9 +99,11 @@ impl<'a> ShogiGame<'a> {
         Self { 
             pos, 
             board, 
+            promotion_flag: false,
             error_message: String::new(), 
             engine_input, 
             engine_rx, 
+            engine_ms: String::from("3000"),
             joystick_rx,
             joystick_state: (-1, -1, -1),
         }
@@ -113,12 +117,13 @@ impl<'a> ShogiGame<'a> {
         let board_size = 560.0;                   // 560 x 560 px 
         let painter = ui.painter();
 
+        let stroke = egui::Stroke::new(1.0, egui::Color32::BLACK);
+
         for label in 0..9 {
             // Paint rows a-i
             let y      = label as f32 * position_factor + offset_y;
             let start  = Pos2::new(offset_x, y);
             let end    = Pos2::new(offset_x + board_size, y);
-            let stroke = egui::Stroke::new(1.0, egui::Color32::BLACK);
             let rank_label = ((b'a' + label as u8) as char).to_string();
 
             painter.line_segment([start, end], stroke);
@@ -134,7 +139,6 @@ impl<'a> ShogiGame<'a> {
             let x      = label as f32 * position_factor + offset_x;
             let start  = Pos2::new(x, offset_y);
             let end    = Pos2::new(x, offset_y + board_size);
-            let stroke = egui::Stroke::new(1.0, egui::Color32::BLACK);
             let file_label = (9 - label).to_string();
 
             painter.line_segment([start, end], stroke);
@@ -150,7 +154,7 @@ impl<'a> ShogiGame<'a> {
         // Render promotion zone circles
         let radius = 3.0;
         let fill = egui::Color32::BLACK;
-        let stroke = egui::Stroke::new(1.0, egui::Color32::BLACK);
+
         painter.circle(Pos2::new(3.0 * position_factor + offset_x, 3.0 * position_factor + offset_y), radius, fill, stroke);
         painter.circle(Pos2::new(6.0 * position_factor + offset_x, 3.0 * position_factor + offset_y), radius, fill, stroke);
         painter.circle(Pos2::new(3.0 * position_factor + offset_x, 6.0 * position_factor + offset_y), radius, fill, stroke);
@@ -191,7 +195,7 @@ impl<'a> ShogiGame<'a> {
         let stroke = egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(60, 110, 40, 128));
     
         // Board needs to be rendered before piece ImageButtons
-        ui.add(egui::Image::new(egui::include_image!("images/boards/painting1.jpg")));
+        ui.add(egui::Image::new(egui::include_image!("images/boards/painting1.jpg")).fit_to_exact_size(egui::vec2(board_size, board_size)));
     
         for rank in 0..9 {
             for file in 0..9 {
@@ -208,6 +212,7 @@ impl<'a> ShogiGame<'a> {
                     ui.painter().rect(rect, 0.0, fill, stroke);
                 }
     
+                // LOGIC FOR PIECE MOVES 
                 if ui.put(rect, curr_piece.button.clone()).clicked() || (switch_flag && j_rank == rank as i32 && (8 - j_file) == file as i32) {
     
                     // Try moving active piece into curr empty cell or capturing enemy piece
@@ -226,7 +231,7 @@ impl<'a> ShogiGame<'a> {
                             let to_sq = Square::new(file as u8, rank as u8).unwrap();
     
                             // Force promotion for now
-                            let m = if !active_piece.is_promoted() && ((rank < 3 && self.pos.side_to_move() == shogi::Color::Black) || (rank > 5 && self.pos.side_to_move() == shogi::Color::White)) {
+                            let m = if self.promotion_flag && !active_piece.is_promoted() && ((rank < 3 && self.pos.side_to_move() == shogi::Color::Black) || (rank > 5 && self.pos.side_to_move() == shogi::Color::White)) {
                                 Move::Normal{from: from_sq, to: to_sq, promote: true}
                             }
                             else {
@@ -327,8 +332,23 @@ impl<'a> ShogiGame<'a> {
 
     // APERY ENGINE
     fn make_engine_move(&mut self) {
+        if let Ok(parsed) = self.engine_ms.parse::<i32>() {
+            if parsed <= 0 {
+                self.error_message = String::from("Engine calculation time must be positive.");
+                return;
+            }
+            if parsed > 10000 {
+                self.error_message = String::from("Engine calculation time must be less than 10000 ms.");
+                return;
+            }
+        } 
+        else {
+            self.error_message = String::from("Engine calculation time must be an integer.");
+            return;
+        }
+
         writeln!(self.engine_input, "position sfen {}", self.pos.to_sfen());
-        writeln!(self.engine_input, "go byoyomi 3000");
+        writeln!(self.engine_input, "go byoyomi {}", self.engine_ms);
 
         while let Ok(line) = self.engine_rx.recv() {
             if line.starts_with("bestmove") {
@@ -360,8 +380,19 @@ impl<'a> eframe::App for ShogiGame<'_> {
                     self.render_grid(ui); 
 
                     ui.add_space(390.0);
-                    if ui.button(format!("Make Engine Move ({})", self.pos.side_to_move())).clicked() { 
-                        self.make_engine_move();
+                    ui.horizontal(|ui| {
+                        if ui.button(format!("Make Engine Move ({})", self.pos.side_to_move())).clicked() {
+                            self.make_engine_move();
+                        }
+                        ui.label("Duration:");
+                        ui.add(
+                            egui::TextEdit::singleline(&mut self.engine_ms)
+                                .desired_width(40.0)
+                        );
+                        ui.label("ms");
+                    });
+                    if ui.button(format!("Promotion: {}", self.promotion_flag)).clicked() {
+                        self.promotion_flag = !self.promotion_flag;
                     }
                     if !self.error_message.is_empty() {
                         ui.label(format!("{}", self.error_message));
