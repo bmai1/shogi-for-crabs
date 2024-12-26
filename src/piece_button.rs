@@ -116,6 +116,19 @@ impl<'a> PieceButton<'a> {
         let p = self.piece.unwrap().piece_type;
         p == PieceType::ProPawn || p == PieceType::ProKnight || p == PieceType::ProLance || p == PieceType::ProSilver || p == PieceType::ProRook || p == PieceType::ProBishop
     }
+
+    pub fn promoted_piecetype(&self) -> PieceType {
+        let p = self.piece.unwrap().piece_type;
+        return match p {
+            PieceType::Silver => PieceType::ProSilver,
+            PieceType::Knight => PieceType::ProKnight,
+            PieceType::Lance => PieceType::ProLance,
+            PieceType::Rook => PieceType::ProRook,
+            PieceType::Pawn => PieceType::ProPawn,
+            PieceType::Bishop => PieceType::ProBishop,
+            _ => PieceType::King,
+        }
+    }
 }
 
 // Used to iterate over hand.rs from shogi crate.
