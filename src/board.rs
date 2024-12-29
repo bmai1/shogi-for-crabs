@@ -19,7 +19,7 @@ impl<'a> Board<'a> {
         Self {
             piece_buttons,
             active: [-1, -1],
-            active_hand: 69,
+            active_hand: usize::MAX,
             active_moves: [[false; 9]; 9],
         }
     }
@@ -59,7 +59,7 @@ impl<'a> Board<'a> {
 
     pub fn reset_activity(&mut self) {
         self.set_active(-1, -1);
-        self.set_active_hand(69);
+        self.set_active_hand(usize::MAX);
         self.active_moves = [[false; 9]; 9];
     }
 
@@ -77,7 +77,10 @@ impl<'a> Board<'a> {
         }
     }
 
+    // TODO: Find potential drop moves
     pub fn drop_candidates(&mut self, p: Piece) -> Bitboard {
+        // if pawn, drop any unoccupied square in file without pawn
+        // else any unoccupied square
         Bitboard::empty()
     }
 }
