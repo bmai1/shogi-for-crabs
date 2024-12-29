@@ -20,7 +20,7 @@ fn main() -> Result<(), eframe::Error> {
     let mut board = Board::new();
     pos.set_sfen("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1").unwrap();  
     
-    // Run engine
+    // Run apery engine
     let mut child = Command::new("./target/debug/apery")
         .current_dir("apery_rust")
         .stdin(Stdio::piped())  
@@ -79,14 +79,13 @@ struct ShogiGame<'a> {
     error_message: String,
     engine_input: ChildStdin,
     engine_rx: mpsc::Receiver<String>,
-    engine_ms: String,
+    engine_ms: String, // Duration for engine calculation in ms
     joystick_rx: mpsc::Receiver<(i32, i32, i32)>,
-    joystick_state: (i32, i32, i32),
+    joystick_state: (i32, i32, i32), // (switch, rank, file)
 }
 
 impl<'a> ShogiGame<'a> {
     fn new(_ctx: &Context, pos: Position, board: Board<'a>, mut engine_input: ChildStdin, engine_rx: mpsc::Receiver<String>) -> Self {
-
         writeln!(engine_input, "isready"); // Start engine
 
         // Start reading joystick
@@ -109,9 +108,79 @@ impl<'a> ShogiGame<'a> {
         }
     }
 
+    // Handle normal and drop moves, called from render_pieces when an ImageButton is clicked
+    fn handle_piece_move(&mut self, rank: usize, file: usize, curr_piece: PieceButton, ui: &mut egui::Ui) {
+        let active      = self.board.active;
+        let active_hand = self.board.active_hand;
+
+        // Attempt normal move with active piece
+        if active != [-1, -1] {
+            let active_piece = &self.board.piece_buttons[active[0] as usize][active[1] as usize];
+
+            if active_piece.piece != None && 
+                (curr_piece.piece == None || 
+                (curr_piece.piece != None && curr_piece.piece.unwrap().color != active_piece.piece.unwrap().color)) {
+
+                // FILE ORDER IS REVERSED, GOES FROM 9 to 1, rank a-i
+                // Square::new(file, rank)
+
+                let from_sq = Square::new(active[1] as u8, active[0] as u8).unwrap();
+                let to_sq = Square::new(file as u8, rank as u8).unwrap();
+
+                // Force promotion for now for manual moves
+                let m = if self.promotion_flag && !active_piece.is_promoted() && ((rank < 3 && self.pos.side_to_move() == shogi::Color::Black) || (rank > 5 && self.pos.side_to_move() == shogi::Color::White)) {
+                    Move::Normal{from: from_sq, to: to_sq, promote: true}
+                }
+                else {
+                    Move::Normal{from: from_sq, to: to_sq, promote: false}
+                };
+
+                self.error_message = format!("{}", m);
+                self.pos.make_move(m).unwrap_or_else(|err| {
+                    self.error_message = format!("Error in make_move: {}", err);
+                    Default::default()
+                });  
+            }
+
+            // Change selection of ally piece (active piece is same color as curr piece but different location)
+            if active_piece.piece != None && curr_piece.piece != None && curr_piece.piece.unwrap().color == active_piece.piece.unwrap().color && active != [rank as i32, file as i32] {
+                self.board.reset_activity();
+                self.board.set_active(rank as i32, file as i32);
+                let sq = Square::new(file as u8, rank as u8).unwrap();
+                let piece = self.pos.piece_at(sq).unwrap();
+                self.board.set_active_moves(&self.pos, Some(sq), piece)
+            }
+            else {
+                self.board.reset_activity();
+            }
+        }
+        // Clicked on side-to-move piece from inactive state
+        else if curr_piece.piece != None && curr_piece.piece.unwrap().color == self.pos.side_to_move() {
+            self.board.reset_activity();
+            self.board.set_active(rank as i32, file as i32);
+            let sq = Square::new(file as u8, rank as u8).unwrap();
+            let piece = self.pos.piece_at(sq).unwrap();
+            self.board.set_active_moves(&self.pos, Some(sq), piece)
+        }
+
+        // Attempt drop move with active hand piece if active hand piece matches side to move
+        else if active_hand != usize::MAX {
+            if (self.pos.side_to_move() == shogi::Color::Black && active_hand >= 7) || (self.pos.side_to_move() == shogi::Color::White && active_hand < 7) {
+                let to_sq = Square::new(file as u8, rank as u8).unwrap();
+                let m = Move::Drop{to: to_sq, piece_type: PIECE_TYPES[active_hand].piece_type};
+
+                self.error_message = format!("{}", m);
+                self.pos.make_move(m).unwrap_or_else(|err| {
+                    self.error_message = format!("Error in make_move: {}", err);
+                    Default::default()
+                });  
+            }
+            self.board.reset_activity();         
+        }
+    }
+
     // Renders grid lines, promotion zone circles, and possible active moves
     fn render_grid(&mut self, ui: &mut egui::Ui) {
-
         let position_factor = 62.22;              // Multiplied by rank and file to get position (560 / 9 = 62.22)
         let (offset_x, offset_y) = (106.5, 56.5); // Offset from top-left
         let board_size = 560.0;                   // 560 x 560 px 
@@ -151,7 +220,7 @@ impl<'a> ShogiGame<'a> {
             );
         }
 
-        // Render promotion zone circles
+        // Render four promotion zone circles
         let radius = 3.0;
         let fill = egui::Color32::BLACK;
 
@@ -176,16 +245,14 @@ impl<'a> ShogiGame<'a> {
 
     // Renders piece_buttons on board based on rank and file. Also renders pieces in hand and joystick location.
     fn render_pieces(&mut self, ui: &mut egui::Ui) {
-        let active      = self.board.active;
-        let active_hand = self.board.active_hand;
         let position_factor = 62.22;               // Multiplied by rank and file to get (x, y) position
         let (offset_x, offset_y) = (106.5, 56.5);  // Offset from top-left
-        let board_size = 560.0;
+        let board_size = 560.0;                    // 560 x 560 px
     
+        // Joystick input
         let mut switch_flag = false;
         if let Ok((switch, j_rank, j_file)) = self.joystick_rx.try_recv() {
-            // Detect when switch changes from 0 to 1 to simulate one click
-            switch_flag = self.joystick_state.0 == 1 && switch == 0;
+            switch_flag = self.joystick_state.0 == 1 && switch == 0; // Detect when switch changes from 0 to 1 to simulate one click
             self.joystick_state = (switch, j_rank, j_file);
         }
         let (switch, j_rank, j_file) = self.joystick_state;
@@ -194,92 +261,27 @@ impl<'a> ShogiGame<'a> {
         let fill = egui::Color32::from_rgba_unmultiplied(60, 110, 40, 128);
         let stroke = egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(60, 110, 40, 128));
     
-        // Board needs to be rendered before piece ImageButtons
+        // Board needs to be drawn before pieces
         ui.add(egui::Image::new(egui::include_image!("images/boards/painting1.jpg")).fit_to_exact_size(egui::vec2(board_size, board_size)));
     
+        // Render pieces on board
         for rank in 0..9 {
             for file in 0..9 {
-            
                 let (min, size) = (
                     Pos2::new(board_size - ((file + 1) as f32 * position_factor) + offset_x, rank as f32 * position_factor + offset_y), 
                     Vec2::new(60.0, 60.0)
                 );
                 let rect = Rect::from_min_size(min, size);
-                let curr_piece = &self.board.piece_buttons[rank][file]; // PieceButton
-    
+               
                 // Marks active square
-                if active == [rank as i32, file as i32] {
+                if self.board.active == [rank as i32, file as i32] {
                     ui.painter().rect(rect, 0.0, fill, stroke);
                 }
     
-                // LOGIC FOR PIECE MOVES 
+                // Clone curr_piece and curr_piece.button to avoid borrowing issues
+                let curr_piece = self.board.piece_buttons[rank][file].clone(); // PieceButton
                 if ui.put(rect, curr_piece.button.clone()).clicked() || (switch_flag && j_rank == rank as i32 && (8 - j_file) == file as i32) {
-    
-                    // Try moving active piece into curr empty cell or capturing enemy piece
-                    if active != [-1, -1] {
-                        
-                        let active_piece = &self.board.piece_buttons[active[0] as usize][active[1] as usize];
-
-                        if active_piece.piece != None && 
-                            (curr_piece.piece == None || 
-                            (curr_piece.piece != None && curr_piece.piece.unwrap().color != active_piece.piece.unwrap().color)) {
-    
-                            // FILE ORDER IS REVERSED, GOES FROM 9 to 1, rank a-i
-                            // Square::new(file, rank), FILE FIRST
-    
-                            let from_sq = Square::new(active[1] as u8, active[0] as u8).unwrap();
-                            let to_sq = Square::new(file as u8, rank as u8).unwrap();
-    
-                            // Force promotion for now
-                            let m = if self.promotion_flag && !active_piece.is_promoted() && ((rank < 3 && self.pos.side_to_move() == shogi::Color::Black) || (rank > 5 && self.pos.side_to_move() == shogi::Color::White)) {
-                                Move::Normal{from: from_sq, to: to_sq, promote: true}
-                            }
-                            else {
-                                Move::Normal{from: from_sq, to: to_sq, promote: false}
-                            };
-    
-                            self.error_message = format!("{}", m); // Placed before potential error to not override
-                            self.pos.make_move(m).unwrap_or_else(|err| {
-                                self.error_message = format!("Error in make_move: {}", err);
-                                Default::default()
-                            });  
-                        }
-
-                        // Change selection of ally piece (active piece is same color as curr piece but different location)
-                        if active_piece.piece != None && curr_piece.piece != None && curr_piece.piece.unwrap().color == active_piece.piece.unwrap().color && active != [rank as i32, file as i32] {
-                            self.board.reset_activity();
-                            self.board.set_active(rank as i32, file as i32);
-                            let sq = Square::new(file as u8, rank as u8).unwrap();
-                            let piece = self.pos.piece_at(sq).unwrap();
-                            self.board.set_active_moves(&self.pos, Some(sq), piece)
-                        }
-                        else {
-                            self.board.reset_activity();
-                        }
-                    }
-                    // Clicked side to move piece from inactive
-                    else if curr_piece.piece != None && curr_piece.piece.unwrap().color == self.pos.side_to_move() {
-                        self.board.reset_activity();
-                        self.board.set_active(rank as i32, file as i32);
-                        let sq = Square::new(file as u8, rank as u8).unwrap();
-                        let piece = self.pos.piece_at(sq).unwrap();
-                        self.board.set_active_moves(&self.pos, Some(sq), piece)
-                    }
-    
-                    // Attempt drop move if active hand matches side to move
-                    else if active_hand != 69 {
-                        if (self.pos.side_to_move() == shogi::Color::Black && active_hand >= 7) || (self.pos.side_to_move() == shogi::Color::White && active_hand < 7) {
-                            let to_sq = Square::new(file as u8, rank as u8).unwrap();
-                            let m = Move::Drop{to: to_sq, piece_type: PIECE_TYPES[active_hand].piece_type};
-
-                            self.error_message = format!("{}", m);
-                            self.pos.make_move(m).unwrap_or_else(|err| {
-                                self.error_message = format!("Error in make_move: {}", err);
-                                Default::default()
-                            });  
-                        }
-                        self.board.reset_activity();         
-                    }
+                    self.handle_piece_move(rank, file, curr_piece, ui);
                 }
             }
         }
@@ -300,25 +302,27 @@ impl<'a> ShogiGame<'a> {
             let rect = Rect::from_min_size(min, size);
     
             if count != 0 {
-                if active_hand == i {
+                // Mark active hand piece
+                if self.board.active_hand == i {
                     ui.painter().rect(rect, 0.0, fill, stroke);
                 }
                 if ui.put(rect, pb.button).clicked() && p.color == self.pos.side_to_move() {
                     self.board.reset_activity();
                     self.board.set_active_hand(i);
+                    // TODO: Set active moves for hand pieces
                     self.board.set_active_moves(&self.pos, None, p);
                 }
             }
             else {
                 ui.put(rect, pb.button);
-                // Semi-opaque hand pieces with count 0
+                // Hand pieces with count of 0 are semi-opaque
                 let fill = egui::Color32::from_rgba_unmultiplied(23, 23, 23, 128);
                 let stroke = egui::Stroke::new(1.0, egui::Color32::from_rgba_unmultiplied(23, 23, 23, 128));
                 ui.painter().rect(rect, 0.0, fill, stroke);
             }
         }
     
-        // Joystick location
+        // Show joystick location
         if switch != -1 {
             let (min, size) = (
                 Pos2::new(board_size - ((9 - j_file) as f32 * position_factor) + offset_x, j_rank as f32 * position_factor + offset_y),
@@ -330,7 +334,7 @@ impl<'a> ShogiGame<'a> {
         }
     }
 
-    // APERY ENGINE
+    // Apery engine communication
     fn make_engine_move(&mut self) {
         if let Ok(parsed) = self.engine_ms.parse::<i32>() {
             if parsed <= 0 {
@@ -398,7 +402,7 @@ impl<'a> eframe::App for ShogiGame<'_> {
                         ui.label(format!("{}", self.error_message));
                     }
 
-                    ctx.request_repaint(); // Manual repaint for joystick
+                    ctx.request_repaint(); // Manual repaint for joystick location
                 });
         }); 
     }
