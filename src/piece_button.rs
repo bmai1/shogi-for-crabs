@@ -149,3 +149,12 @@ pub static PIECE_TYPES: [Piece; 14] = [
     Piece { piece_type: PieceType::Bishop, color: Color::Black },
     Piece { piece_type: PieceType::Rook,   color: Color::Black },
 ];
+
+impl Clone for PieceButton<'_> {
+    fn clone(&self) -> Self {
+        PieceButton {
+            button: self.button.clone(),
+            piece: self.piece.clone(),
+        }
+    }
+}
