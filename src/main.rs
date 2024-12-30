@@ -1,9 +1,7 @@
-#![allow(unused)]
-
 use eframe::egui::{self, CentralPanel, Context, ViewportBuilder, Rect, Vec2, Pos2};
 use shogi::{Position, Square, Move};
-use std::process::{Command, Stdio, ChildStdin, ChildStdout};
-use std::sync::{mpsc, Arc, Mutex};
+use std::process::{Command, Stdio, ChildStdin};
+use std::sync::mpsc;
 use std::thread;
 use std::io::{BufRead, BufReader, Write};
 
@@ -17,7 +15,7 @@ use joystick::Joystick;
 fn main() -> Result<(), eframe::Error> {
     shogi::bitboard::Factory::init();
     let mut pos = Position::new();
-    let mut board = Board::new();
+    let board = Board::new();
     pos.set_sfen("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1").unwrap();  
     
     // Run apery engine
@@ -86,7 +84,7 @@ struct ShogiGame<'a> {
 
 impl<'a> ShogiGame<'a> {
     fn new(_ctx: &Context, pos: Position, board: Board<'a>, mut engine_input: ChildStdin, engine_rx: mpsc::Receiver<String>) -> Self {
-        writeln!(engine_input, "isready"); // Start engine
+        writeln!(engine_input, "isready").expect("Failed to start engine"); // Start engine
 
         // Start reading joystick
         let (joystick_tx, joystick_rx) = mpsc::channel();
@@ -351,8 +349,8 @@ impl<'a> ShogiGame<'a> {
             return;
         }
 
-        writeln!(self.engine_input, "position sfen {}", self.pos.to_sfen());
-        writeln!(self.engine_input, "go byoyomi {}", self.engine_ms);
+        writeln!(self.engine_input, "position sfen {}", self.pos.to_sfen()).expect("Failed to set board position");
+        writeln!(self.engine_input, "go byoyomi {}", self.engine_ms).expect("Failed to find best move");
 
         while let Ok(line) = self.engine_rx.recv() {
             if line.starts_with("bestmove") {
