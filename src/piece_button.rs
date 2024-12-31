@@ -93,9 +93,6 @@ impl<'a> PieceButton<'a> {
             (PieceType::ProBishop, Color::White) => {
                 ImageButton::new(include_image!("images/pieces/1UM.png")).frame(false)
             },
-            _ => {
-                ImageButton::new(include_image!("images/pieces/empty.png")).frame(false)
-            },
         };
 
         PieceButton {
@@ -117,6 +114,7 @@ impl<'a> PieceButton<'a> {
         p == PieceType::ProPawn || p == PieceType::ProKnight || p == PieceType::ProLance || p == PieceType::ProSilver || p == PieceType::ProRook || p == PieceType::ProBishop
     }
 
+    #[allow(dead_code)]
     pub fn promoted_piecetype(&self) -> PieceType {
         let p = self.piece.unwrap().piece_type;
         return match p {

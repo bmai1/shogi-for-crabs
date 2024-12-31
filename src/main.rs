@@ -1,4 +1,4 @@
-use eframe::egui::{self, CentralPanel, Context, ViewportBuilder, Rect, Vec2, Pos2};
+use eframe::egui::{CentralPanel, Context, ViewportBuilder, Rect, Vec2, Pos2};
 use shogi::{Position, Square, Move};
 use std::process::{Command, Stdio, ChildStdin};
 use std::sync::mpsc;
@@ -107,7 +107,7 @@ impl<'a> ShogiGame<'a> {
     }
 
     // Handle normal and drop moves, called from render_pieces when an ImageButton is clicked
-    fn handle_piece_move(&mut self, rank: usize, file: usize, curr_piece: PieceButton, ui: &mut egui::Ui) {
+    fn handle_piece_move(&mut self, rank: usize, file: usize, curr_piece: PieceButton) {
         let active      = self.board.active;
         let active_hand = self.board.active_hand;
 
@@ -279,7 +279,7 @@ impl<'a> ShogiGame<'a> {
                 // Clone curr_piece and curr_piece.button to avoid borrowing issues
                 let curr_piece = self.board.piece_buttons[rank][file].clone(); // PieceButton
                 if ui.put(rect, curr_piece.button.clone()).clicked() || (switch_flag && j_rank == rank as i32 && (8 - j_file) == file as i32) {
-                    self.handle_piece_move(rank, file, curr_piece, ui);
+                    self.handle_piece_move(rank, file, curr_piece);
                 }
             }
         }

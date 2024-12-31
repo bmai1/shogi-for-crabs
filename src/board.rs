@@ -81,6 +81,7 @@ impl<'a> Board<'a> {
     pub fn drop_candidates(&mut self, p: Piece) -> Bitboard {
         // if pawn, drop any unoccupied square in file without pawn
         // else any unoccupied square
+        println!("{}", p);
         Bitboard::empty()
     }
 }

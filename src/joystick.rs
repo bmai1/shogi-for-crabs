@@ -33,7 +33,6 @@ impl Joystick {
                                     // X = 0 (left), 517 (rest), 1023 (right)
                                     // Y = 0 (up),   518 (rest), 1023 (down)
                                     
-                                    let joystick_center = 517;
                                     let joystick_max    = 1023;
                                     let rank = ((y as f32 / joystick_max as f32) * 8.0).round().clamp(0.0, 8.0) as i32;
                                     let file = ((x as f32 / joystick_max as f32) * 8.0).round().clamp(0.0, 8.0) as i32;
