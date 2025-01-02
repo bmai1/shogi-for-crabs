@@ -16,8 +16,7 @@ git clone https://github.com/HiraokaTakuya/apery_rust.git && \
 cd apery_rust && \
 git submodule init && \
 git submodule update && \
-cargo build --release && \
-./target/release/apery 
+cargo build --release
 ```
 
 3. Go back to root directory and run:
