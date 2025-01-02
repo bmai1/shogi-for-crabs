@@ -14,8 +14,8 @@ use joystick::Joystick;
 
 fn main() -> Result<(), eframe::Error> {
     shogi::bitboard::Factory::init();
-    let mut pos = Position::new();
     let board = Board::new();
+    let mut pos = Position::new();
     pos.set_sfen("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1").unwrap();  
     
     // Run apery engine
@@ -51,7 +51,7 @@ fn main() -> Result<(), eframe::Error> {
     });
 
     let options = eframe::NativeOptions {
-        viewport: ViewportBuilder::default().with_inner_size([780.0, 700.0]).with_resizable(true), 
+        viewport: ViewportBuilder::default().with_inner_size([780.0, 730.0]).with_resizable(true), 
         ..Default::default()
     };
     eframe::run_native(
@@ -160,7 +160,6 @@ impl<'a> ShogiGame<'a> {
             let piece = self.pos.piece_at(sq).unwrap();
             self.board.set_active_moves(&self.pos, Some(sq), piece)
         }
-
         // Attempt drop move with active hand piece if active hand piece matches side to move
         else if active_hand != usize::MAX {
             if (self.pos.side_to_move() == shogi::Color::Black && active_hand >= 7) || (self.pos.side_to_move() == shogi::Color::White && active_hand < 7) {
@@ -305,10 +304,12 @@ impl<'a> ShogiGame<'a> {
                     ui.painter().rect(rect, 0.0, fill, stroke);
                 }
                 if ui.put(rect, pb.button).clicked() && p.color == self.pos.side_to_move() {
+                    let tmp = self.board.active_hand; // Deselect hand piece on reclick
                     self.board.reset_activity();
-                    self.board.set_active_hand(i);
-                    // TODO: Set active moves for hand pieces
-                    self.board.set_active_moves(&self.pos, None, p);
+                    if tmp != i {
+                        self.board.set_active_hand(i);
+                        self.board.set_active_moves(&self.pos, None, p);
+                    }
                 }
             }
             else {
@@ -369,6 +370,34 @@ impl<'a> ShogiGame<'a> {
             }
         }
     }
+
+    #[allow(dead_code)]
+    fn engine_vs_player(&mut self) {
+        // let engine play against you
+        todo!();
+    }
+
+    #[allow(dead_code)]
+    fn engine_vs_engine(&mut self) {
+        // let engine play against itself
+        todo!();
+    }
+
+    #[allow(dead_code)]
+    fn replay_game(&mut self) {
+        // https://www.youtube.com/watch?v=6z8MzWRm__s&list=PLB3D925021814AD0A
+        // extract sfen strings of each state and replay
+        todo!();
+    }
+
+    // New game: reset board, position, and engine
+    fn new_game(&mut self) {
+        self.board = Board::new();
+        self.pos = Position::new();
+        self.pos.set_sfen("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1").unwrap();  
+        writeln!(self.engine_input, "position startpos").expect("Failed to reset board position");
+        self.error_message.clear();
+    }
 }
 
 impl<'a> eframe::App for ShogiGame<'_> {
@@ -395,6 +424,9 @@ impl<'a> eframe::App for ShogiGame<'_> {
                     });
                     if ui.button(format!("Promotion: {}", self.promotion_flag)).clicked() {
                         self.promotion_flag = !self.promotion_flag;
+                    }
+                    if ui.button(format!("New game")).clicked() {
+                        self.new_game();
                     }
                     if !self.error_message.is_empty() {
                         ui.label(format!("{}", self.error_message));
