@@ -1,6 +1,6 @@
 
 
-use shogi::{Position, Bitboard, Piece, Square};
+use shogi::{Position, Piece, Square};
 use crate::PieceButton;
 
 pub struct Board<'a> {
@@ -40,20 +40,18 @@ impl<'a> Board<'a> {
     pub fn set_active_moves(&mut self, pos: &Position, sq: Option<Square>, p: Piece) {
         self.active_moves = [[false; 9]; 9];
 
-        // If square is None, then set active hand moves
-        let moves = if let Some(square) = sq {
-            pos.move_candidates(square, p)
-        } else {
-            self.drop_candidates(p)
-        };
-
-        for sq in moves {
-            // println!("{}", sq);
-
-            let rank = 8 - (sq.index() / 9); 
-            let file = sq.index() % 9;
-
-            self.active_moves[rank][file] = true;
+        // Drop move when the square of the piece is None
+        if sq.is_none() {
+            self.drop_candidates(pos, p);
+        }
+        // Normal moves from Bitboard
+        else {
+            let moves = pos.move_candidates(sq.unwrap(), p);
+            for sq in moves {
+                let rank = 8 - (sq.index() / 9); 
+                let file = sq.index() % 9;
+                self.active_moves[rank][file] = true;
+            }
         }
     }
 
@@ -76,12 +74,45 @@ impl<'a> Board<'a> {
             }
         }
     }
-
+    
     // TODO: Find potential drop moves
-    pub fn drop_candidates(&mut self, p: Piece) -> Bitboard {
-        // if pawn, drop any unoccupied square in file without pawn
-        // else any unoccupied square
-        println!("{}", p);
-        Bitboard::empty()
+    pub fn drop_candidates(&mut self, pos: &Position, p: Piece) {
+        // If pawn, can drop in any unoccupied square in a file without pawn
+        if p.piece_type == shogi::PieceType::Pawn {
+            let mut pawn_files = [false; 9];
+            for rank in 0..9 {
+                for file in 0..9 {
+                    let sq = Square::new(file, rank).unwrap();
+                    if let Some(piece) = pos.piece_at(sq) {
+                        if piece.piece_type == shogi::PieceType::Pawn && piece.color == pos.side_to_move() {
+                            pawn_files[file as usize] = true;
+                        }
+                    }
+                }
+            }
+            for rank in 0..9 {
+                for file in 0..9 {
+                    let sq = Square::new(file, rank).unwrap();
+                    if !pawn_files[file as usize] && pos.piece_at(sq).is_none() {
+                        let r = 8 - (sq.index() / 9); 
+                        let f = sq.index() % 9;
+                        self.active_moves[r][f] = true;
+                    }
+                }
+            }
+        }
+        // Other pieces can drop in any unoccupied square
+        else {
+            for rank in 0..9 {
+                for file in 0..9 {
+                    let sq = Square::new(file, rank).unwrap();
+                    if pos.piece_at(sq).is_none() {
+                        let r = 8 - (sq.index() / 9); 
+                        let f = sq.index() % 9;
+                        self.active_moves[r][f] = true;
+                    }
+                }
+            }
+        }
     }
 }
