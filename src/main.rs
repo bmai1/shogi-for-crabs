@@ -402,7 +402,7 @@ impl<'a> ShogiGame<'a> {
     // Undo move with shogi::Position MoveHistory
     fn undo_move(&mut self) {
         self.pos.unmake_move().unwrap();
-        writeln!(self.engine_input, "position sfen {}", self.pos.to_sfen()).expect("Failed to set board position");
+        writeln!(self.engine_input, "position sfen {}", self.pos.to_sfen()).expect("Failed to undo move");
         self.error_message.clear();
     }
 }
