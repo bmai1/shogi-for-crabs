@@ -398,6 +398,13 @@ impl<'a> ShogiGame<'a> {
         writeln!(self.engine_input, "position startpos").expect("Failed to reset board position");
         self.error_message.clear();
     }
+
+    // Undo move with shogi::Position MoveHistory
+    fn undo_move(&mut self) {
+        self.pos.unmake_move().unwrap();
+        writeln!(self.engine_input, "position sfen {}", self.pos.to_sfen()).expect("Failed to set board position");
+        self.error_message.clear();
+    }
 }
 
 impl<'a> eframe::App for ShogiGame<'_> {
@@ -425,9 +432,14 @@ impl<'a> eframe::App for ShogiGame<'_> {
                     if ui.button(format!("Promotion: {}", self.promotion_flag)).clicked() {
                         self.promotion_flag = !self.promotion_flag;
                     }
-                    if ui.button(format!("New game")).clicked() {
-                        self.new_game();
-                    }
+                    ui.horizontal(|ui| {
+                        if ui.button(format!("Undo move")).clicked() {
+                            self.undo_move();
+                        }
+                        if ui.button(format!("New game")).clicked() {
+                            self.new_game();
+                        }
+                    });
                     if !self.error_message.is_empty() {
                         ui.label(format!("{}", self.error_message));
                     }
