@@ -1,5 +1,3 @@
-
-
 use shogi::{Position, Piece, Square};
 use crate::PieceButton;
 
