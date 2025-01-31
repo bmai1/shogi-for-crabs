@@ -369,15 +369,26 @@ impl<'a> eframe::App for ShogiGame<'_> {
                         );
                         ui.label("ms");
                     });
-                    if ui.button(format!("Promotion: {}", self.promotion_flag)).clicked() {
-                        self.promotion_flag = !self.promotion_flag;
-                    }
                     ui.horizontal(|ui| {
                         if ui.button(format!("New game")).clicked() {
                             self.new_game();
                         }
                         if ui.button(format!("Undo move")).clicked() {
                             self.undo_move();
+                        }
+                        if ui.button(format!("Promotion: {}", self.promotion_flag)).clicked() {
+                            self.promotion_flag = !self.promotion_flag;
+                        }
+                    });
+                    ui.horizontal(|ui| {
+                        if ui.button("Print SFEN").clicked {
+                            println!("{}", self.pos.to_sfen());
+                        }
+                        if ui.button("Castle Presets").clicked() {
+                            // TODO: egui-dropdown listing castles
+                            self.new_game();
+                            let castle_sfen = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1 moves 2h7h 8b3b 5i4h 5a6b 4h3h 6b7b 3h2h 7b8b 3i3h 7a7b 6i5h 4a5b 1g1f";
+                            self.pos.set_sfen(castle_sfen).expect("Failed to set castle position.");
                         }
                     });
                     if !self.error_message.is_empty() {
