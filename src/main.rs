@@ -52,7 +52,7 @@ fn main() -> Result<(), eframe::Error> {
     });
 
     let options = eframe::NativeOptions {
-        viewport: eframe::egui::ViewportBuilder::default().with_inner_size([780.0, 730.0]).with_resizable(true).with_icon(Arc::new(load_icon())), 
+        viewport: eframe::egui::ViewportBuilder::default().with_inner_size([780.0, 740.0]).with_resizable(true).with_icon(Arc::new(load_icon())), 
         ..Default::default()
     };
     eframe::run_native(
