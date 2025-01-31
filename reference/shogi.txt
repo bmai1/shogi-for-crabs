@@ -29,3 +29,10 @@ Fix ideas:
     - If active and click on cell, see if valid move
     - If active and click on enemy piece, capture
     - If active and click on ally piece, active is now on ally piece
+
+Castles reference: https://shogischool.com/shogi-castles/
+    - Mino Castle: lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1 moves 2h7h 8b3b 5i4h 5a6b 4h3h 6b7b 3h2h 7b8b 3i3h 7a7b 6i5h 4a5b 1g1f
+
+Common Openings:
+    - Ranging Rook: Move rook to bishop, opens up some Mino castles
+    - (Double) Static Rook: push rook pawn fast to threaten bishop
