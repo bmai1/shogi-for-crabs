@@ -1,4 +1,4 @@
-Shogi implementation (USI-compatible GUI) in Rust with lishogi assets, shogi-rs, and apery_rust shogi engine. 
+Shogi GUI in Rust with lishogi assets, shogi-rs, and apery_rust shogi engine. 
 
 What is Shogi? It's Japanese chess, and I suck at it.
 
