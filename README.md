@@ -25,9 +25,10 @@ cd ..
 cargo run
 ```
 
-## Demo (manual and engine moves)
+## Demo
 
-https://github.com/user-attachments/assets/1912660c-780b-4be1-a84a-c3ffe8044de8
+https://github.com/user-attachments/assets/58d2ca56-ae4a-4f7f-b5db-17d639507a50
+
 
 ## Reference
 
