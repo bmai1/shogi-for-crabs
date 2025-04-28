@@ -3,6 +3,7 @@ use shogi::{Position, Square, Move};
 use std::process::ChildStdin;
 use std::sync::mpsc;
 use std::thread;
+use std::collections::HashMap;
 use std::io::Write;
 
 use crate::Board;
@@ -23,8 +24,13 @@ pub struct ShogiGame<'a> {
 }
 
 impl<'a> ShogiGame<'a> {
-    pub fn new(_ctx: &Context, pos: Position, board: Board<'a>, mut engine_input: ChildStdin, engine_rx: mpsc::Receiver<String>) -> Self {
-        writeln!(engine_input, "isready").expect("Failed to start engine"); // Start engine
+    pub fn new(_ctx: &Context, pos: Position, board: Board<'a>, mut engine_input: ChildStdin, engine_rx: mpsc::Receiver<String>, options: &HashMap<String, String>) -> Self {
+        let option_lines = options
+            .iter()
+            .map(|(name, value)| format!("setoption name {} value {}", name, value))
+            .collect::<Vec<_>>()
+            .join("\n");
+        writeln!(engine_input, "{}\nisready", option_lines).expect("Failed to start engine"); // Start engine
 
         // Start reading joystick
         let (joystick_tx, joystick_rx) = mpsc::channel();

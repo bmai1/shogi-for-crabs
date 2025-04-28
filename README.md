@@ -10,7 +10,8 @@ git clone https://github.com/bmai1/shogi-for-crabs.git
 cd shogi-for-crabs
 ```
 
-2. Install [apery_rust evaluation binaries](https://github.com/HiraokaTakuya/apery_rust), apery_rust should be in root directory (shogi-for-crabs):
+2. Specify the USI engine and the path to the evaluation files.  
+For example, place the evaluation binaries for [apery_rust evaluation binaries](https://github.com/HiraokaTakuya/apery_rust) in the root directory (shogi-for-crabs).
 ```bash
 git clone https://github.com/HiraokaTakuya/apery_rust.git && \
 cd apery_rust && \
@@ -22,7 +23,7 @@ cargo build --release
 3. Go back to root directory and run:
 ```bash
 cd ..
-cargo run
+cargo run -- --engine apery_rust/target/debug/apery --engine-option Eval_Dir=apery_rust/eval/20190617
 ```
 
 ## Demo
