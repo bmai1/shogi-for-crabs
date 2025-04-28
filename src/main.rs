@@ -1,4 +1,6 @@
+use clap::{command, Parser};
 use shogi::Position;
+use std::collections::HashMap;
 use std::process::{Command, Stdio};
 use std::sync::{mpsc, Arc};
 use std::thread;
@@ -13,15 +15,37 @@ use piece_button::{PieceButton, PIECE_TYPES};
 mod joystick;
 use joystick::Joystick;
 
+#[derive(Parser)]
+#[command(version)]
+struct Args {
+    /// Path to the USI engine
+    #[arg(long)]
+    engine: String,
+
+    /// Settings for the engine
+    #[arg(long, value_parser = parse_key_val, num_args = 0..)]
+    engine_option: Vec<(String, String)>,
+}
+
+fn parse_key_val(s: &str) -> Result<(String, String), String> {
+    let parts: Vec<_> = s.splitn(2, '=').collect();
+    if parts.len() != 2 {
+        return Err(format!("invalid KEY=VALUE: no `=` found in `{}`", s));
+    }
+    Ok((parts[0].to_string(), parts[1].to_string()))
+}
+
 fn main() -> Result<(), eframe::Error> {
+    let args = Args::parse();
+    let engine_options: HashMap<_, _> = args.engine_option.into_iter().collect();
+
     shogi::bitboard::Factory::init();
     let board = Board::new();
     let mut pos = Position::new();
     pos.set_sfen("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1").unwrap();  
     
     // Run apery engine
-    let mut child = Command::new("./target/debug/apery")
-        .current_dir("apery_rust")
+    let mut child = Command::new(&args.engine)
         .stdin(Stdio::piped())  
         .stdout(Stdio::piped()) 
         .stderr(Stdio::piped())
@@ -66,6 +90,7 @@ fn main() -> Result<(), eframe::Error> {
                 board,
                 engine_input,
                 engine_rx,
+                &engine_options,
             )))
         }),
     )
