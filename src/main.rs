@@ -20,7 +20,7 @@ fn main() -> Result<(), eframe::Error> {
     pos.set_sfen("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1").unwrap();  
     
     // Run apery engine
-    let mut child = Command::new("./target/debug/apery")
+    let mut child = Command::new("./target/release/apery")
         .current_dir("apery_rust")
         .stdin(Stdio::piped())  
         .stdout(Stdio::piped()) 
