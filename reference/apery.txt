@@ -1,6 +1,12 @@
-To use:
+first time running/after cargo clean:
+cargo build
+cd apery_rust && \
+git submodule init && \
+git submodule update && \
+cargo build --release
 
-cargo run 
+Test:
+./target/release/apery
 isready
 position startpos
 .
